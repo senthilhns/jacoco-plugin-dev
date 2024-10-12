@@ -1,0 +1,7 @@
+.env
+release/
+
+.idea/
+main
+drone-coverage-report
+build/
