@@ -7,8 +7,10 @@ package plugin
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 )
 
@@ -33,4 +35,18 @@ func writeCardTo(out io.Writer, data []byte) {
 	io.WriteString(out, encoded)
 	io.WriteString(out, "\u001B]0m")
 	io.WriteString(out, "\n")
+}
+
+func GetNewError(s string) error {
+	return errors.New(s)
+}
+
+func LogPrintln(p Plugin, args ...interface{}) {
+	if p != nil {
+		if p.IsQuiet() {
+			return
+		}
+	}
+
+	log.Println(append([]interface{}{"Plugin Info:"}, args...)...)
 }

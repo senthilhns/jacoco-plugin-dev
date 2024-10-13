@@ -1,6 +1,6 @@
 module github.com/harness-community/drone-coverage-report
 
-go 1.12
+go 1.20
 
 require (
 	github.com/kelseyhightower/envconfig v1.4.0
