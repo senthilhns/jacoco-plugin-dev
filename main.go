@@ -30,14 +30,15 @@ func main() {
 		logrus.SetLevel(logrus.TraceLevel)
 	}
 
-	if err := plugin.Exec(context.Background(), args); err != nil {
-		logrus.Fatalln(err)	
+	if _, err := plugin.Exec(context.Background(), args); err != nil {
+		logrus.Fatalln(err)
 	}
 }
 
 // default formatter that writes logs without including timestamp
 // or level information.
-type formatter struct {}
+type formatter struct{}
+
 func (*formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(entry.Message), nil
 }
