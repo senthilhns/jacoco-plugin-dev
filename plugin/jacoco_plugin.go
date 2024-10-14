@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -122,10 +123,14 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 		return GetNewError("Error in IsClassArgOk: ClassPatterns is empty")
 	}
 	p.ClassPatterns = args.ClassPatterns
+	p.ClassInclusionPatterns = args.ClassInclusionPatterns
+	p.ClassExclusionPatterns = args.ClassExclusionPatterns
 
 	classesCompletePathsList, classesRelativePathsList, err :=
 		FilterFileOrDirUsingGlobPatterns(p.BuildRootPath, p.GetClassPatternsStrArray(),
 			p.ClassInclusionPatterns, p.ClassExclusionPatterns)
+
+	fmt.Println("CCCCCCCCCCCCC", classesRelativePathsList)
 
 	if err != nil {
 		LogPrintln(p, "JacocoPlugin Error in IsClassArgOk: "+err.Error())

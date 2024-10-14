@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/bmatcuk/doublestar/v4"
 	"io"
 	"io/ioutil"
@@ -62,7 +63,6 @@ func IsDirExists(dir string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-// GetAllEntriesFromGlobPattern searches for files matching Maven-style glob patterns.
 func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error) {
 	var matches []string
 	patterns := strings.Split(globPatterns, ",")
@@ -90,10 +90,13 @@ func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error
 }
 
 func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []string,
-	includeGlobPattern, excludeGlobPattern string) ([]string, []string, error) {
+	includeGlobPatternCsvStr, excludeGlobPatternCsvStr string) ([]string, []string, error) {
 
 	var completePathsList []string
 	var relativePathList []string
+
+	includeGlobPatternStrList := ToStringArrayFromCsvString(includeGlobPatternCsvStr)
+	excludeGlobPatternStrList := ToStringArrayFromCsvString(excludeGlobPatternCsvStr)
 
 	for _, dirPattern := range dirsGlobList {
 
@@ -106,57 +109,55 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 			return nil, nil, err
 		}
 
-		for _, dir := range matchedDirs {
-			completePath := filepath.Join(rootSearchDir, dir)
-			completePathsList = append(completePathsList, completePath)
-			relativePathList = append(relativePathList, dir)
+		for _, relativePath := range matchedDirs {
+			completePath := filepath.Join(rootSearchDir, relativePath)
+			allEntries, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
+				includeGlobPatternStrList, excludeGlobPatternStrList)
+			if err != nil {
+				fmt.Println("Error in WalkDir: ", err.Error())
+				return nil, nil, err
+			}
+			relativePathList = append(relativePathList, allEntries...)
 		}
 
-		//for _, dir := range matchedDirs {
-		//	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		//		if err != nil {
-		//			return err
-		//		}
-		//		// Apply inclusion pattern if provided
-		//		if includeGlobPattern != "" {
-		//			matches, err := doublestar.Match(includeGlobPattern, path)
-		//			if err != nil || !matches {
-		//				return nil
-		//			}
-		//		}
-		//		// Apply exclusion pattern if provided
-		//		if excludeGlobPattern != "" {
-		//			excluded, err := doublestar.Match(excludeGlobPattern, path)
-		//			if err != nil {
-		//				return err
-		//			}
-		//			if excluded {
-		//				return nil
-		//			}
-		//		}
-		//		completePathsList = append(completePathsList, path)
-		//		return nil
-		//	})
-		//	if err != nil {
-		//		return nil, nil, err
-		//	}
-		//}
 	}
-
-	//// Generate relative paths
-	//for _, path := range completePathsList {
-	//	relPath, err := filepath.Rel(".", path)
-	//	if err != nil {
-	//		return nil, nil, err
-	//	}
-	//	relativePathList = append(relativePathList, relPath)
-	//}
 
 	return completePathsList, relativePathList, nil
 }
 
+func WalkDir2(completePath, relativePath, completePathPrefix string,
+	includeGlobPatternStrList, excludeGlobPatternStrList []string) ([]string, error) {
+
+	relativePathsList := []string{}
+
+	for _, includeGlobPatternStr := range includeGlobPatternStrList {
+
+		rootSearchDirFS := os.DirFS(completePath)
+		relPattern := strings.TrimPrefix(includeGlobPatternStr, completePath+"/")
+		matchedFiles, err := doublestar.Glob(rootSearchDirFS, relPattern)
+
+		if err != nil {
+			fmt.Println("Error in doublestar.Glob: ", err.Error())
+		}
+
+		relativePathsList = append(relativePathsList, matchedFiles...)
+	}
+
+	return relativePathsList, nil
+}
+
+func TrimStrings(input []string) []string {
+	var trimmed []string
+	for _, str := range input {
+		trimmed = append(trimmed, strings.TrimSpace(str))
+	}
+	return trimmed
+}
+
 func ToStringArrayFromCsvString(input string) []string {
-	return strings.Split(input, ",")
+	sl := strings.Split(input, ",")
+
+	return TrimStrings(sl)
 }
 
 func IsMapHasAllStrings(m map[string]interface{}, strList []string) bool {

@@ -94,14 +94,40 @@ func (c *ClassesTestInfo) isallrequiredpathsPresent(requiredPaths []string) bool
 }
 
 func TestClassPathWithIncludeExcludeVariations(t *testing.T) {
+	//CheckClassPathWithNoIncludeNoExclude(t)
+	CheckClassPathWithIncludeAndExclude(t)
+}
+
+func CheckClassPathWithNoIncludeNoExclude(t *testing.T) {
 
 	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
 		"/opt/hns/test-resources/game-of-life-master/**/WEB-INF/classes"
-	classInclusionPatterns := "**/*.class"
+	classInclusionPatterns := ""
+	classExclusionPatterns := ""
+
+	expectedPaths := []string{
+		"gameoflife-build/target/classes",
+		"gameoflife-core/target/classes",
+		"gameoflife-web/target/classes",
+	}
+
+	CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatterns,
+		classExclusionPatterns, expectedPaths, t)
+
+}
+
+func CheckClassPathWithIncludeAndExclude(t *testing.T) {
+
+	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
+		"/opt/hns/test-resources/game-of-life-master/**/WEB-INF/classes"
+	classInclusionPatterns := "**/*.class, **/*.xml"
 	classExclusionPatterns := "**/controllers/*.class"
 
-	expectedPaths := []string{"gameoflife-build/target/classes",
-		"gameoflife-core/target/classes", "gameoflife-web/target/classes"}
+	expectedPaths := []string{
+		"gameoflife-build/target/classes",
+		"gameoflife-core/target/classes",
+		"gameoflife-web/target/classes",
+	}
 
 	CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatterns,
 		classExclusionPatterns, expectedPaths, t)
@@ -111,14 +137,7 @@ func TestClassPathWithIncludeExcludeVariations(t *testing.T) {
 func CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatterns,
 	classExclusionPatterns string, expectedPaths []string, t *testing.T) {
 
-	//classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
-	//	"/opt/hns/test-resources/game-of-life-master/**/WEB-INF/classes"
-	//classInclusionPatterns := "**/*.class"
-	//classExclusionPatterns := "**/controllers/*.class"
-
-	_, _ = classExclusionPatterns, classInclusionPatterns
-
-	classesMapList, err := CheckClassPaths(classPatterns, "", "", t)
+	classesMapList, err := CheckClassPaths(classPatterns, classInclusionPatterns, classExclusionPatterns, t)
 	if err != nil {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
@@ -145,12 +164,8 @@ func CheckClassPaths(classPattern, classInclusionPattern,
 
 	args := GetTestNewArgs()
 	args.ClassPatterns = classPattern
-	if len(classInclusionPattern) > 0 {
-		args.ClassInclusionPatterns = classInclusionPattern
-	}
-	if len(classExclusionPattern) > 0 {
-		args.ClassExclusionPatterns = classExclusionPattern
-	}
+	args.ClassInclusionPatterns = classInclusionPattern
+	args.ClassExclusionPatterns = classExclusionPattern
 
 	plugin, err := Exec(context.TODO(), args)
 	if err != nil {
