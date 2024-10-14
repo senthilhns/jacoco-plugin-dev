@@ -13,14 +13,18 @@ type JacocoPlugin struct {
 type JacocoPluginStateStore struct {
 	BuildRootPath     string
 	ExecFilePathsList []string
+	ClassFilesList    []string
+
+	ClassesCompletePathsList []string
+	ClassesRelativePathsList []string
 }
 
 type JacocoPluginParams struct {
 	ExecPattern string `envconfig:"PLUGIN_REPORTS_PATH_PATTERN"`
 
-	ClassPattern          string `envconfig:"PLUGIN_CLASS_DIRECTORIES"`
-	ClassInclusionPattern string `envconfig:"PLUGIN_CLASS_INCLUSION_PATTERN"`
-	ClassExclusionPattern string `envconfig:"PLUGIN_CLASS_EXCLUSION_PATTERN"`
+	ClassPatterns          string `envconfig:"PLUGIN_CLASS_DIRECTORIES"`
+	ClassInclusionPatterns string `envconfig:"PLUGIN_CLASS_INCLUSION_PATTERN"`
+	ClassExclusionPatterns string `envconfig:"PLUGIN_CLASS_EXCLUSION_PATTERN"`
 
 	SourcePattern          string `envconfig:"PLUGIN_SOURCE_DIRECTORIES"`
 	SourceInclusionPattern string `envconfig:"PLUGIN_SOURCE_INCLUSION_PATTERN"`
@@ -46,6 +50,20 @@ func (p *JacocoPlugin) Init() error {
 	}
 
 	return nil
+}
+
+func (p *JacocoPlugin) InspectProcessArgs(
+	argNamesList []string) (map[string]interface{}, error) {
+
+	m := map[string]interface{}{}
+	for _, argName := range argNamesList {
+		switch argName {
+		case ClassFilesListParamKey:
+			m["ClassesCompletePathsList"] = p.ClassesCompletePathsList
+			m["ClassesRelativePathsList"] = p.ClassesRelativePathsList
+		}
+	}
+	return m, nil
 }
 
 func (p *JacocoPlugin) SetBuildRoot(buildRootPath string) error {
@@ -84,6 +102,37 @@ func (p *JacocoPlugin) ValidateAndProcessArgs(args Args) error {
 		return err
 	}
 
+	err = p.IsClassArgOk(args)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in ValidateAndProcessArgs: "+err.Error())
+		return err
+	}
+	return nil
+}
+
+func (p *JacocoPlugin) GetClassPatternsStrArray() []string {
+	return ToStringArrayFromCsvString(p.ClassPatterns)
+}
+
+func (p *JacocoPlugin) IsClassArgOk(args Args) error {
+
+	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
+
+	if args.ClassPatterns == "" {
+		return GetNewError("Error in IsClassArgOk: ClassPatterns is empty")
+	}
+	p.ClassPatterns = args.ClassPatterns
+
+	classesCompletePathsList, classesRelativePathsList, err :=
+		FilterFileOrDirUsingGlobPatterns(p.BuildRootPath, p.GetClassPatternsStrArray(),
+			p.ClassInclusionPatterns, p.ClassExclusionPatterns)
+
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in IsClassArgOk: "+err.Error())
+		return GetNewError("Error in IsClassArgOk: " + err.Error())
+	}
+
+	p.ClassesCompletePathsList, p.ClassesRelativePathsList = classesCompletePathsList, classesRelativePathsList
 	return nil
 }
 
@@ -140,7 +189,8 @@ func (p *JacocoPlugin) GetPluginType() string {
 }
 
 const (
-	BuildRootPathKeyStr = "BUILD_ROOT_PATH"
+	BuildRootPathKeyStr    = "BUILD_ROOT_PATH"
+	ClassFilesListParamKey = "ClassFilesList"
 )
 
 //

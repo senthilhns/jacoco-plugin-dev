@@ -88,3 +88,103 @@ func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error
 
 	return matches, err
 }
+
+func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []string,
+	includeGlobPattern, excludeGlobPattern string) ([]string, []string, error) {
+
+	var completePathsList []string
+	var relativePathList []string
+
+	for _, dirPattern := range dirsGlobList {
+
+		rootSearchDirFS := os.DirFS(rootSearchDir)
+
+		relPattern := strings.TrimPrefix(dirPattern, rootSearchDir+"/")
+
+		matchedDirs, err := doublestar.Glob(rootSearchDirFS, relPattern)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, dir := range matchedDirs {
+			completePath := filepath.Join(rootSearchDir, dir)
+			completePathsList = append(completePathsList, completePath)
+			relativePathList = append(relativePathList, dir)
+		}
+
+		//for _, dir := range matchedDirs {
+		//	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		//		if err != nil {
+		//			return err
+		//		}
+		//		// Apply inclusion pattern if provided
+		//		if includeGlobPattern != "" {
+		//			matches, err := doublestar.Match(includeGlobPattern, path)
+		//			if err != nil || !matches {
+		//				return nil
+		//			}
+		//		}
+		//		// Apply exclusion pattern if provided
+		//		if excludeGlobPattern != "" {
+		//			excluded, err := doublestar.Match(excludeGlobPattern, path)
+		//			if err != nil {
+		//				return err
+		//			}
+		//			if excluded {
+		//				return nil
+		//			}
+		//		}
+		//		completePathsList = append(completePathsList, path)
+		//		return nil
+		//	})
+		//	if err != nil {
+		//		return nil, nil, err
+		//	}
+		//}
+	}
+
+	//// Generate relative paths
+	//for _, path := range completePathsList {
+	//	relPath, err := filepath.Rel(".", path)
+	//	if err != nil {
+	//		return nil, nil, err
+	//	}
+	//	relativePathList = append(relativePathList, relPath)
+	//}
+
+	return completePathsList, relativePathList, nil
+}
+
+func ToStringArrayFromCsvString(input string) []string {
+	return strings.Split(input, ",")
+}
+
+func IsMapHasAllStrings(m map[string]interface{}, strList []string) bool {
+	for _, str := range strList {
+		found := false
+		for _, val := range m {
+			if valStr, ok := val.(string); ok && valStr == str {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func ToJsonStringFromMap[T any](m T) (string, error) {
+	outBytes, err := json.Marshal(m)
+	if err == nil {
+		return string(outBytes), nil
+	}
+	return "", err
+}
+
+func ToStructFromJsonString[T any](jsonStr string) (T, error) {
+	var v T
+	err := json.Unmarshal([]byte(jsonStr), &v)
+	return v, err
+}

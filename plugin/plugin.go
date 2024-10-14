@@ -18,6 +18,7 @@ type Plugin interface {
 	PersistResults() error
 	GetPluginType() string
 	IsQuiet() bool
+	InspectProcessArgs(argNamesList []string) (map[string]interface{}, error)
 }
 
 func GetNewPlugin(ctx context.Context, args Args) (Plugin, error) {
@@ -48,18 +49,22 @@ type CoveragePluginArgs struct {
 
 type EnvPluginInputArgs struct {
 	ExecFilesPathPattern string `envconfig:"PLUGIN_REPORTS_PATH_PATTERN"`
+
+	ClassPatterns          string `envconfig:"PLUGIN_CLASS_DIRECTORIES"`
+	ClassInclusionPatterns string `envconfig:"PLUGIN_CLASS_INCLUSION_PATTERN"`
+	ClassExclusionPatterns string `envconfig:"PLUGIN_CLASS_EXCLUSION_PATTERN"`
 }
 
-func Exec(ctx context.Context, args Args) error {
+func Exec(ctx context.Context, args Args) (Plugin, error) {
 
 	plugin, err := GetNewPlugin(ctx, args)
 	if err != nil {
-		return err
+		return plugin, err
 	}
 
 	err = plugin.Init()
 	if err != nil {
-		return err
+		return plugin, err
 	}
 	defer func(p Plugin) {
 		err := p.DeInit()
@@ -70,25 +75,25 @@ func Exec(ctx context.Context, args Args) error {
 
 	err = plugin.ValidateAndProcessArgs(args)
 	if err != nil {
-		return err
+		return plugin, err
 	}
 
 	err = plugin.Run()
 	if err != nil {
-		return err
+		return plugin, err
 	}
 
 	err = plugin.PersistResults()
 	if err != nil {
-		return err
+		return plugin, err
 	}
 
 	err = plugin.WriteOutputVariables()
 	if err != nil {
-		return err
+		return plugin, err
 	}
 
-	return nil
+	return plugin, nil
 }
 
 const (

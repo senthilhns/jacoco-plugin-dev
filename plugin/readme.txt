@@ -34,3 +34,10 @@ java -jar jacoco.jar \
     --html ./gameoflife-core/target/site/jacoco_html   \
     --xml ./gameoflife-core/target/site/jacoco.xml
 
+java -jar jacoco.jar \
+    report   ./gameoflife-core/target/jacoco.exec   ./gameoflife-web/target/jacoco.exec   \
+    --classfiles ./gameoflife-core/target/classes   \
+    --html /tmp/jacoco_html   \
+    --xml /tmp/jacoco.xml
+
+
