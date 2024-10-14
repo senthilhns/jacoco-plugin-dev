@@ -11,10 +11,14 @@ type JacocoPlugin struct {
 }
 
 type JacocoPluginStateStore struct {
-	BuildRootPath        string
-	ExecFilePathsList    []string
+	BuildRootPath     string
+	ExecFilePathsList []string
+
 	ClassesInfoStoreList []FilesInfoStore
 	FinalizedClassesList []IncludeExcludesMerged
+
+	SourcesInfoStoreList []FilesInfoStore
+	FinalizedSourcesList []IncludeExcludesMerged
 }
 
 type JacocoPluginParams struct {
@@ -57,6 +61,8 @@ func (p *JacocoPlugin) InspectProcessArgs(argNamesList []string) (map[string]int
 		switch argName {
 		case ClassesInfoStoreListParamKey:
 			m[argName] = p.ClassesInfoStoreList
+		case FinalizedSourcesListParamKey:
+			m[argName] = p.SourcesInfoStoreList
 		}
 	}
 	return m, nil
@@ -103,11 +109,48 @@ func (p *JacocoPlugin) ValidateAndProcessArgs(args Args) error {
 		LogPrintln(p, "JacocoPlugin Error in ValidateAndProcessArgs: "+err.Error())
 		return err
 	}
+
+	err = p.IsSourceArgOk(args)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in ValidateAndProcessArgs: "+err.Error())
+		return err
+	}
+
 	return nil
 }
 
 func (p *JacocoPlugin) GetClassPatternsStrArray() []string {
 	return ToStringArrayFromCsvString(p.ClassPatterns)
+}
+
+func (p *JacocoPlugin) GetSourcePatternsStrArray() []string {
+	return ToStringArrayFromCsvString(p.SourcePattern)
+}
+
+func (p *JacocoPlugin) IsSourceArgOk(args Args) error {
+	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
+
+	if args.SourcePattern == "" {
+		return GetNewError("Error in IsSourceArgOk: SourcePattern is empty")
+	}
+	p.SourcePattern = args.SourcePattern
+	p.SourceInclusionPattern = args.SourceInclusionPattern
+	p.SourceExclusionPattern = args.SourceExclusionPattern
+
+	sourcesInfoStoreList, err :=
+		FilterFileOrDirUsingGlobPatterns(p.BuildRootPath, p.GetSourcePatternsStrArray(),
+			p.SourceInclusionPattern, p.SourceExclusionPattern, AllSourcesAutoFillGlob)
+
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in IsSourceArgOk: "+err.Error())
+		return GetNewError("Error in IsSourceArgOk: " + err.Error())
+	}
+
+	p.SourcesInfoStoreList = sourcesInfoStoreList
+	p.FinalizedSourcesList = MergeIncludeExcludeFilePaths(p.SourcesInfoStoreList)
+
+	return nil
+
 }
 
 func (p *JacocoPlugin) IsClassArgOk(args Args) error {
@@ -131,9 +174,12 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 	}
 
 	p.ClassesInfoStoreList = classesInfoStoreList
-
 	p.FinalizedClassesList = MergeIncludeExcludeFilePaths(p.ClassesInfoStoreList)
 
+	if len(p.FinalizedClassesList) < 1 {
+		LogPrintln(p, "Error in IsClassArgOk: No class inferred from class patterns")
+		return GetNewError("Error in IsClassArgOk: No class inferred from class patterns")
+	}
 	return nil
 }
 
@@ -193,7 +239,9 @@ const (
 	BuildRootPathKeyStr          = "BUILD_ROOT_PATH"
 	ClassFilesListParamKey       = "ClassFilesList"
 	ClassesInfoStoreListParamKey = "ClassesInfoStoreList"
+	FinalizedSourcesListParamKey = "FinalizedSourcesList"
 	AllClassesAutoFillGlob       = "**/*.class"
+	AllSourcesAutoFillGlob       = "**/*.java"
 )
 
 //

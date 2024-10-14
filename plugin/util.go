@@ -113,7 +113,6 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 		if err != nil {
 			return classesInfoStoreList, err
 		}
-
 		for _, relativePath := range matchedDirs {
 			completePath := filepath.Join(rootSearchDir, relativePath)
 			classesInfoStore, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
@@ -196,7 +195,6 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 	}
 
 	for _, excludeGlobPatternStr := range excludeGlobPatternStrList {
-
 		rootSearchDirFS := os.DirFS(completePath)
 		relPattern := strings.TrimPrefix(excludeGlobPatternStr, completePath+"/")
 		matchedFiles, err := doublestar.Glob(rootSearchDirFS, relPattern)

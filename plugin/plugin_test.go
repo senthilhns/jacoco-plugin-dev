@@ -140,6 +140,137 @@ func TestClassPathWithNoIncludeNoExclude(t *testing.T) {
 
 }
 
+func TestSourcePathWithIncludeAndExclude(t *testing.T) {
+
+	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
+		"/opt/hns/test-resources/game-of-life-master/**/WEB-INF/classes"
+	classInclusionPatterns := "**/*.class, **/*.xml"
+	classExclusionPatterns := "**/controllers/*.class"
+
+	sourcePatterns := "**/src/main/java"
+	sourceInclusionPatterns := "**/*.java, *.groovy"
+	sourceExclusionPatterns := "**/controllers/*.java"
+
+	expectedIncludePaths := []string{
+		"com/wakaleo/gameoflife/domain/Cell.java",
+		"com/wakaleo/gameoflife/domain/Grid.java",
+		"com/wakaleo/gameoflife/domain/GridReader.java",
+		"com/wakaleo/gameoflife/domain/GridWriter.java",
+		"com/wakaleo/gameoflife/domain/Universe.java",
+	}
+	expectedExcludePaths := []string{
+		"com/wakaleo/gameoflife/webtests/controllers/GameController.java",
+		"com/wakaleo/gameoflife/webtests/controllers/HomePageController.java",
+	}
+
+	CheckSourceAndClassPathsWithIncludeExcludeVariations(sourcePatterns, sourceInclusionPatterns, sourceExclusionPatterns,
+		classPatterns, classInclusionPatterns, classExclusionPatterns, expectedIncludePaths, expectedExcludePaths, t)
+
+}
+
+type SourceTestInfo struct {
+	FinalizedSourcesList []struct {
+		CompleteClassPathPrefix         string   `json:"CompleteClassPathPrefix"`
+		RelativeClassPath               string   `json:"RelativeClassPath"`
+		IncludeClassesRelativePathsList []string `json:"IncludeClassesRelativePathsList"`
+		ExcludeClassesRelativePathsList []string `json:"ExcludeClassesRelativePathsList"`
+	} `json:"FinalizedSourcesList"`
+}
+
+func CheckSourceAndClassPathsWithIncludeExcludeVariations(
+	sourcePattern, sourceInclusionPattern, sourceExclusionPattern,
+	classPatterns, classInclusionPatterns, classExclusionPatterns string,
+	expectedIncludePaths, expectedExcludePaths []string, t *testing.T) {
+
+	sourcesInfo, err := CheckSourcePathsWithClassPaths(classPatterns, classInclusionPatterns, classExclusionPatterns,
+		sourcePattern, sourceInclusionPattern, sourceExclusionPattern, t)
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
+	}
+
+	sourcesJsonStr, err := ToJsonStringFromMap[map[string]interface{}](sourcesInfo)
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
+	}
+	_ = sourcesJsonStr
+	// fmt.Println(sourcesJsonStr)
+
+	sti, err := ToStructFromJsonString[SourceTestInfo](sourcesJsonStr)
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
+	}
+
+	isAllOk := sti.isAllRequiredIncludePathsPresent(expectedIncludePaths)
+	if !isAllOk {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: Expected paths not found")
+	}
+
+	isAllOk = sti.isAllRequiredExcludePathsPresent(expectedExcludePaths)
+	if !isAllOk {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: Expected exclude paths not found")
+	}
+
+}
+
+func (s *SourceTestInfo) isAllRequiredIncludePathsPresent(requiredIncludePaths []string) bool {
+	pathSet := make(map[string]struct{})
+
+	for _, sourceInfo := range s.FinalizedSourcesList {
+		for _, sourcePath := range sourceInfo.IncludeClassesRelativePathsList {
+			pathSet[sourcePath] = struct{}{}
+		}
+	}
+
+	for _, required := range requiredIncludePaths {
+		if _, found := pathSet[required]; !found {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *SourceTestInfo) isAllRequiredExcludePathsPresent(requiredExcludePaths []string) bool {
+	excludePathSet := make(map[string]struct{})
+
+	for _, sourceInfo := range s.FinalizedSourcesList {
+		for _, excludePath := range sourceInfo.ExcludeClassesRelativePathsList {
+			excludePathSet[excludePath] = struct{}{}
+		}
+	}
+
+	for _, required := range requiredExcludePaths {
+		if _, found := excludePathSet[required]; !found {
+			return false
+		}
+	}
+	return true
+}
+
+func CheckSourcePathsWithClassPaths(classPattern, classInclusionPattern, classExclusionPattern,
+	sourcePattern, sourceInclusionPattern, sourceExclusionPattern string,
+	t *testing.T) (map[string]interface{}, error) {
+
+	args := GetTestNewArgs()
+	args.ClassPatterns = classPattern
+	args.ClassInclusionPatterns = classInclusionPattern
+	args.ClassExclusionPatterns = classExclusionPattern
+
+	args.SourcePattern = sourcePattern
+	args.SourceInclusionPattern = sourceInclusionPattern
+	args.SourceExclusionPattern = sourceExclusionPattern
+
+	plugin, err := Exec(context.TODO(), args)
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
+	}
+
+	sourcesInfo, err := plugin.InspectProcessArgs([]string{FinalizedSourcesListParamKey})
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
+	}
+	return sourcesInfo, err
+}
+
 func TestClassPathWithIncludeAndExclude(t *testing.T) {
 
 	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
@@ -228,6 +359,9 @@ const (
 	TestExecPathPattern02 = "**/target/**.exec"
 	TestExecPathPattern03 = "**/jacoco.exec"
 	TestExecPathPattern04 = "**/target/jacoco.exec, **/target/**.exec, **/jacoco.exec"
+
+	SourceIncludePathPattern01 = "**/*.class, *.groovy"
+	SourceExcludePathPattern01 = "**/src/test/java/**/*.java"
 )
 
 //

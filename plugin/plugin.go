@@ -53,6 +53,10 @@ type EnvPluginInputArgs struct {
 	ClassPatterns          string `envconfig:"PLUGIN_CLASS_DIRECTORIES"`
 	ClassInclusionPatterns string `envconfig:"PLUGIN_CLASS_INCLUSION_PATTERN"`
 	ClassExclusionPatterns string `envconfig:"PLUGIN_CLASS_EXCLUSION_PATTERN"`
+
+	SourcePattern          string `envconfig:"PLUGIN_SOURCE_DIRECTORIES"`
+	SourceInclusionPattern string `envconfig:"PLUGIN_SOURCE_INCLUSION_PATTERN"`
+	SourceExclusionPattern string `envconfig:"PLUGIN_SOURCE_EXCLUSION_PATTERN"`
 }
 
 func Exec(ctx context.Context, args Args) (Plugin, error) {
