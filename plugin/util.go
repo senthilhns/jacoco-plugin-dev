@@ -50,3 +50,11 @@ func LogPrintln(p Plugin, args ...interface{}) {
 
 	log.Println(append([]interface{}{"Plugin Info:"}, args...)...)
 }
+
+func IsDirExists(dir string) (bool, error) {
+	info, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return false, err
+	}
+	return info.IsDir(), nil
+}

@@ -1,0 +1,40 @@
+# Use Eclipse Temurin JDK instead of JRE
+FROM eclipse-temurin:21-jdk-alpine AS alpine
+
+RUN apk add -U --no-cache ca-certificates curl
+
+# Define environment variables for paths and versions
+ENV HARNESS_PLUGIN_DEPS_PATH="/opt/harness/plugins-deps"
+ENV JACOCO_VERSION="0.8.12"
+ENV JACOCO_PATH="${HARNESS_PLUGIN_DEPS_PATH}/jacoco/${JACOCO_VERSION}"
+
+# Create directories for dependencies and JaCoCo
+RUN mkdir -p ${HARNESS_PLUGIN_DEPS_PATH} ${JACOCO_PATH}
+
+RUN mkdir -p /opt/test
+
+# Download JaCoCo CLI JAR
+RUN curl -L -o ${JACOCO_PATH}/org.jacoco.cli-${JACOCO_VERSION}.jar \
+    https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${JACOCO_VERSION}/org.jacoco.cli-${JACOCO_VERSION}-nodeps.jar
+
+# Create symbolic link for easy access to the JAR
+RUN ln -snf ${JACOCO_PATH}/org.jacoco.cli-${JACOCO_VERSION}.jar \
+    ${JACOCO_PATH}/jacoco.jar
+
+# Final stage: Use the JDK in the final image
+FROM eclipse-temurin:21-jdk-alpine
+
+# Define environment variables again in the final stage
+ENV GODEBUG netdns=go
+ENV HARNESS_PLUGIN_DEPS_PATH="/opt/harness/plugins-deps"
+ENV JACOCO_PATH="${HARNESS_PLUGIN_DEPS_PATH}/jacoco/${JACOCO_VERSION}"
+
+# Copy JaCoCo and certificates from the first stage
+COPY --from=alpine ${JACOCO_PATH} ${JACOCO_PATH}
+COPY --from=alpine /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Add the plugin binary to /bin
+ADD release/linux/amd64/plugin /bin/
+
+# Set the entry point
+ENTRYPOINT ["/bin/plugin"]

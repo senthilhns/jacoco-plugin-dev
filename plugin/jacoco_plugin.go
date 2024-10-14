@@ -1,41 +1,69 @@
 package plugin
 
-/*
-	Input Parameter	Type
-
-	PLUGIN_TOOL	String (required)
-	PLUGIN_FAIL_ON_THRESHOLD	boolean (optional)
-	PLUGIN_FAIL_IF_NO_REPORTS	boolean (optional)
-
-	execPattern	PLUGIN_REPORTS_PATH_PATTERN	String (optional)
-	classPattern	PLUGIN_CLASS_DIRECTORIES	String (optional)
-	exclusionPattern	PLUGIN_CLASS_EXCLUSION_PATTERN	String(optional)
-	inclusionPattern	PLUGIN_CLASS_INCLUSION_PATTERN	String(optional)
-	skipCopyOfSrcFiles	PLUGIN_SKIP_SOURCE_COPY	boolean(optional)
-	sourcePattern	PLUGIN_SOURCE_DIRECTORIES	String(optional)
-	sourceInclusionPattern	PLUGIN_SOURCE_INCLUSION_PATTERN	String(optional)
-	sourceExclusionPattern	PLUGIN_SOURCE_EXCLUSION_PATTERN	String(optional)
-	minimumClassCoverage	PLUGIN_THRESHOLD_CLASS	float(optional)
-	minimumMethodCoverage	PLUGIN_THRESHOLD_METHOD	float(optional)
-	minimumLineCoverage	PLUGIN_THRESHOLD_LINE	float(optional)
-	minimumInstructionCoverage	PLUGIN_THRESHOLD_INSTRUCTION	float(optional)
-	minimumBranchCoverage	PLUGIN_THRESHOLD_BRANCH	float(optional)
-	minimumComplexityCoverage	PLUGIN_THRESHOLD_COMPLEXITY	int(optional)
-
-	PLUGIN_THRESHOLD_MODULE	float(optional)
-	PLUGIN_THRESHOLD_PACKAGE	float(optional)
-	PLUGIN_THRESHOLD_FILE	float(optional)
-	PLUGIN_THRESHOLD_COMPLEXITY_DENSITY	float(optional)
-	PLUGIN_THRESHOLD_LOC	int(optional)
-
-*/
+import "os"
 
 type JacocoPlugin struct {
 	CoveragePluginArgs
+	JacocoPluginParams
+	JacocoPluginStateStore
+}
+
+type JacocoPluginStateStore struct {
+	BuildRootPath string
+}
+
+type JacocoPluginParams struct {
+	ExecPattern string `envconfig:"PLUGIN_REPORTS_PATH_PATTERN"`
+
+	ClassPattern          string `envconfig:"PLUGIN_CLASS_DIRECTORIES"`
+	ClassInclusionPattern string `envconfig:"PLUGIN_CLASS_INCLUSION_PATTERN"`
+	ClassExclusionPattern string `envconfig:"PLUGIN_CLASS_EXCLUSION_PATTERN"`
+
+	SourcePattern          string `envconfig:"PLUGIN_SOURCE_DIRECTORIES"`
+	SourceInclusionPattern string `envconfig:"PLUGIN_SOURCE_INCLUSION_PATTERN"`
+	SourceExclusionPattern string `envconfig:"PLUGIN_SOURCE_EXCLUSION_PATTERN"`
+
+	SkipCopyOfSrcFiles bool `envconfig:"PLUGIN_SKIP_SOURCE_COPY"`
+
+	MinimumInstructionCoverage float64 `envconfig:"PLUGIN_THRESHOLD_INSTRUCTION"`
+	MinimumBranchCoverage      float64 `envconfig:"PLUGIN_THRESHOLD_BRANCH"`
+	MinimumComplexityCoverage  int     `envconfig:"PLUGIN_THRESHOLD_COMPLEXITY"`
+	MinimumLineCoverage        float64 `envconfig:"PLUGIN_THRESHOLD_LINE"`
+	MinimumMethodCoverage      float64 `envconfig:"PLUGIN_THRESHOLD_METHOD"`
+	MinimumClassCoverage       float64 `envconfig:"PLUGIN_THRESHOLD_CLASS"`
 }
 
 func (p *JacocoPlugin) Init() error {
 	LogPrintln(p, "JacocoPlugin Init")
+
+	err := p.SetBuildRoot("")
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) SetBuildRoot(buildRootPath string) error {
+
+	if buildRootPath == "" {
+		buildRootPath = os.Getenv(BuildRootPathKeyStr)
+	}
+
+	ok, err := IsDirExists(buildRootPath)
+
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in SetBuildRoot: "+err.Error())
+		return err
+	}
+
+	if !ok {
+		LogPrintln(p, "JacocoPlugin Error in SetBuildRoot: Build root path does not exist")
+		return GetNewError("Error in SetBuildRoot: Build root path does not exist")
+	}
+
+	p.BuildRootPath = buildRootPath
 	return nil
 }
 
@@ -44,8 +72,15 @@ func (p *JacocoPlugin) DeInit() error {
 	return nil
 }
 
-func (p *JacocoPlugin) BuildAndValidateArgs(args Args) error {
+func (p *JacocoPlugin) ValidateAndProcessArgs(args Args) error {
 	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
+
+	return nil
+}
+
+func (p *JacocoPlugin) IsExecFileArgOk(args Args) error {
+	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
+
 	return nil
 }
 
@@ -73,6 +108,10 @@ func (p *JacocoPlugin) IsQuiet() bool {
 func (p *JacocoPlugin) GetPluginType() string {
 	return JacocoPluginType
 }
+
+const (
+	BuildRootPathKeyStr = "BUILD_ROOT_PATH"
+)
 
 //
 //
