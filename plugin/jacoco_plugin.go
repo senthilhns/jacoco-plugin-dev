@@ -1,6 +1,8 @@
 package plugin
 
-import "os"
+import (
+	"os"
+)
 
 type JacocoPlugin struct {
 	CoveragePluginArgs
@@ -9,7 +11,8 @@ type JacocoPlugin struct {
 }
 
 type JacocoPluginStateStore struct {
-	BuildRootPath string
+	BuildRootPath     string
+	ExecFilePathsList []string
 }
 
 type JacocoPluginParams struct {
@@ -80,6 +83,7 @@ func (p *JacocoPlugin) ValidateAndProcessArgs(args Args) error {
 		LogPrintln(p, "JacocoPlugin Error in ValidateAndProcessArgs: "+err.Error())
 		return err
 	}
+
 	return nil
 }
 
@@ -90,7 +94,24 @@ func (p *JacocoPlugin) IsExecFileArgOk(args Args) error {
 		return GetNewError("Error in IsExecFileArgOk: ExecFilesPathPattern is empty")
 	}
 
+	execFilesPathList, err := GetAllEntriesFromGlobPattern(p.BuildRootPath, args.ExecFilesPathPattern)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in IsExecFileArgOk: "+err.Error())
+		return GetNewError("Error in IsExecFileArgOk: " + err.Error())
+	}
+
+	p.ExecFilePathsList = execFilesPathList
+
+	if len(p.ExecFilePathsList) < 1 {
+		LogPrintln(p, "JacocoPlugin Error in IsExecFileArgOk: No jacoco exec files found")
+		return GetNewError("Error in IsExecFileArgOk: No jacoco exec files found")
+	}
+
 	return nil
+}
+
+func (p *JacocoPlugin) GetExecFilesList() []string {
+	return p.ExecFilePathsList
 }
 
 func (p *JacocoPlugin) Run() error {

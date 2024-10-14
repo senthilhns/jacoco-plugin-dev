@@ -8,10 +8,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/bmatcuk/doublestar/v4"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 func writeCard(path, schema string, card interface{}) {
@@ -57,4 +60,31 @@ func IsDirExists(dir string) (bool, error) {
 		return false, err
 	}
 	return info.IsDir(), nil
+}
+
+// GetAllEntriesFromGlobPattern searches for files matching Maven-style glob patterns.
+func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error) {
+	var matches []string
+	patterns := strings.Split(globPatterns, ",")
+
+	err := filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		for _, pattern := range patterns {
+			pattern = strings.TrimSpace(pattern)
+			match, err := doublestar.Match(pattern, path)
+			if err != nil {
+				return err
+			}
+			if match {
+				matches = append(matches, path)
+				break
+			}
+		}
+		return nil
+	})
+
+	return matches, err
 }
