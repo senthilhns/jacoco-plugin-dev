@@ -74,18 +74,24 @@ func CheckExecPathPattern(globPattern string, t *testing.T) {
 }
 
 type ClassesTestInfo struct {
-	ClassesCompletePathsList []string `json:"ClassesCompletePathsList"`
-	ClassesRelativePathsList []string `json:"ClassesRelativePathsList"`
+	ClassesInfoStoreList []struct {
+		CompleteClassPathPrefix         string   `json:"CompleteClassPathPrefix"`
+		RelativeClassPath               string   `json:"RelativeClassPath"`
+		IncludeClassesRelativePathsList []string `json:"IncludeClassesRelativePathsList"`
+		ExcludeClassesRelativePathsList []string `json:"ExcludeClassesRelativePathsList"`
+	} `json:"ClassesInfoStoreList"`
 }
 
-func (c *ClassesTestInfo) isallrequiredpathsPresent(requiredPaths []string) bool {
+func (c *ClassesTestInfo) isAllRequiredIncludePathsPresent(requiredIncludePaths []string) bool {
 	pathSet := make(map[string]struct{})
 
-	for _, path := range c.ClassesRelativePathsList {
-		pathSet[path] = struct{}{}
+	for _, classInfo := range c.ClassesInfoStoreList {
+		for _, classPath := range classInfo.IncludeClassesRelativePathsList {
+			pathSet[classPath] = struct{}{}
+		}
 	}
 
-	for _, required := range requiredPaths {
+	for _, required := range requiredIncludePaths {
 		if _, found := pathSet[required]; !found {
 			return false
 		}
@@ -93,8 +99,25 @@ func (c *ClassesTestInfo) isallrequiredpathsPresent(requiredPaths []string) bool
 	return true
 }
 
+func (c *ClassesTestInfo) isAllRequiredExcludePathsPresent(requiredExcludePaths []string) bool {
+	excludePathSet := make(map[string]struct{})
+
+	for _, classInfo := range c.ClassesInfoStoreList {
+		for _, excludePath := range classInfo.ExcludeClassesRelativePathsList {
+			excludePathSet[excludePath] = struct{}{}
+		}
+	}
+
+	for _, required := range requiredExcludePaths {
+		if _, found := excludePathSet[required]; !found {
+			return false
+		}
+	}
+	return true
+}
+
 func TestClassPathWithIncludeExcludeVariations(t *testing.T) {
-	//CheckClassPathWithNoIncludeNoExclude(t)
+	CheckClassPathWithNoIncludeNoExclude(t)
 	CheckClassPathWithIncludeAndExclude(t)
 }
 
@@ -105,14 +128,20 @@ func CheckClassPathWithNoIncludeNoExclude(t *testing.T) {
 	classInclusionPatterns := ""
 	classExclusionPatterns := ""
 
-	expectedPaths := []string{
-		"gameoflife-build/target/classes",
-		"gameoflife-core/target/classes",
-		"gameoflife-web/target/classes",
+	expectedIncludePaths := []string{
+		"com/wakaleo/gameoflife/domain/Cell.class",
+		"com/wakaleo/gameoflife/domain/Grid.class",
+		"com/wakaleo/gameoflife/domain/GridReader.class",
+		"com/wakaleo/gameoflife/domain/GridWriter.class",
+		"com/wakaleo/gameoflife/domain/Universe.class",
+		"com/wakaleo/gameoflife/webtests/controllers/GameController.class",
+		"com/wakaleo/gameoflife/webtests/controllers/HomePageController.class",
 	}
 
+	expectedExcludePaths := []string{}
+
 	CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatterns,
-		classExclusionPatterns, expectedPaths, t)
+		classExclusionPatterns, expectedIncludePaths, expectedExcludePaths, t)
 
 }
 
@@ -123,26 +152,33 @@ func CheckClassPathWithIncludeAndExclude(t *testing.T) {
 	classInclusionPatterns := "**/*.class, **/*.xml"
 	classExclusionPatterns := "**/controllers/*.class"
 
-	expectedPaths := []string{
-		"gameoflife-build/target/classes",
-		"gameoflife-core/target/classes",
-		"gameoflife-web/target/classes",
+	expectedIncludePaths := []string{
+		"com/wakaleo/gameoflife/domain/Cell.class",
+		"com/wakaleo/gameoflife/domain/Grid.class",
+		"com/wakaleo/gameoflife/domain/GridReader.class",
+		"com/wakaleo/gameoflife/domain/GridWriter.class",
+		"com/wakaleo/gameoflife/domain/Universe.class",
+	}
+
+	expectedExcludePaths := []string{
+		"com/wakaleo/gameoflife/webtests/controllers/GameController.class",
+		"com/wakaleo/gameoflife/webtests/controllers/HomePageController.class",
 	}
 
 	CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatterns,
-		classExclusionPatterns, expectedPaths, t)
+		classExclusionPatterns, expectedIncludePaths, expectedExcludePaths, t)
 
 }
 
 func CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatterns,
-	classExclusionPatterns string, expectedPaths []string, t *testing.T) {
+	classExclusionPatterns string, expectedIncludePaths, expectedExcludePaths []string, t *testing.T) {
 
-	classesMapList, err := CheckClassPaths(classPatterns, classInclusionPatterns, classExclusionPatterns, t)
+	classesInfo, err := CheckClassPaths(classPatterns, classInclusionPatterns, classExclusionPatterns, t)
 	if err != nil {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
 
-	classesJsonStr, err := ToJsonStringFromMap[map[string]interface{}](classesMapList)
+	classesJsonStr, err := ToJsonStringFromMap[map[string]interface{}](classesInfo)
 	if err != nil {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
@@ -152,10 +188,15 @@ func CheckClassPathWithIncludeExcludeVariation(classPatterns, classInclusionPatt
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
 
-	isAllOk := cti.isallrequiredpathsPresent(expectedPaths)
+	isAllOk := cti.isAllRequiredIncludePathsPresent(expectedIncludePaths)
 
 	if !isAllOk {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: Expected paths not found")
+	}
+
+	isAllOk = cti.isAllRequiredExcludePathsPresent(expectedExcludePaths)
+	if !isAllOk {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: Expected exclude paths not found")
 	}
 }
 
@@ -172,8 +213,8 @@ func CheckClassPaths(classPattern, classInclusionPattern,
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
 
-	classesListMap, err := plugin.InspectProcessArgs([]string{ClassFilesListParamKey})
-	return classesListMap, err
+	classesInfo, err := plugin.InspectProcessArgs([]string{ClassesInfoStoreListParamKey})
+	return classesInfo, err
 }
 
 func GetTestNewArgs() Args {

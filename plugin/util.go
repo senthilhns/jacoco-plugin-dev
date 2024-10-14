@@ -90,10 +90,15 @@ func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error
 }
 
 func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []string,
-	includeGlobPatternCsvStr, excludeGlobPatternCsvStr string) ([]string, []string, error) {
+	includeGlobPatternCsvStr, excludeGlobPatternCsvStr string, autoFillIncludePattern string) ([]ClassesInfoStore, error) {
 
-	var completePathsList []string
-	var relativePathList []string
+	var classesInfoStoreList []ClassesInfoStore
+
+	if len(includeGlobPatternCsvStr) == 0 {
+		if len(autoFillIncludePattern) > 0 {
+			includeGlobPatternCsvStr = autoFillIncludePattern
+		}
+	}
 
 	includeGlobPatternStrList := ToStringArrayFromCsvString(includeGlobPatternCsvStr)
 	excludeGlobPatternStrList := ToStringArrayFromCsvString(excludeGlobPatternCsvStr)
@@ -106,29 +111,37 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 
 		matchedDirs, err := doublestar.Glob(rootSearchDirFS, relPattern)
 		if err != nil {
-			return nil, nil, err
+			return classesInfoStoreList, err
 		}
 
 		for _, relativePath := range matchedDirs {
 			completePath := filepath.Join(rootSearchDir, relativePath)
-			allEntries, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
+			classesInfoStore, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
 				includeGlobPatternStrList, excludeGlobPatternStrList)
 			if err != nil {
 				fmt.Println("Error in WalkDir: ", err.Error())
-				return nil, nil, err
+				return classesInfoStoreList, err
 			}
-			relativePathList = append(relativePathList, allEntries...)
+			classesInfoStoreList = append(classesInfoStoreList, classesInfoStore)
 		}
 
 	}
 
-	return completePathsList, relativePathList, nil
+	return classesInfoStoreList, nil
+}
+
+type ClassesInfoStore struct {
+	CompleteClassPathPrefix         string
+	RelativeClassPath               string
+	IncludeClassesRelativePathsList []string
+	ExcludeClassesRelativePathsList []string
 }
 
 func WalkDir2(completePath, relativePath, completePathPrefix string,
-	includeGlobPatternStrList, excludeGlobPatternStrList []string) ([]string, error) {
+	includeGlobPatternStrList, excludeGlobPatternStrList []string) (ClassesInfoStore, error) {
 
-	relativePathsList := []string{}
+	relativeIncludePathsList := []string{}
+	relativeExcludePathsList := []string{}
 
 	for _, includeGlobPatternStr := range includeGlobPatternStrList {
 
@@ -140,10 +153,30 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 			fmt.Println("Error in doublestar.Glob: ", err.Error())
 		}
 
-		relativePathsList = append(relativePathsList, matchedFiles...)
+		relativeIncludePathsList = append(relativeIncludePathsList, matchedFiles...)
 	}
 
-	return relativePathsList, nil
+	for _, excludeGlobPatternStr := range excludeGlobPatternStrList {
+
+		rootSearchDirFS := os.DirFS(completePath)
+		relPattern := strings.TrimPrefix(excludeGlobPatternStr, completePath+"/")
+		matchedFiles, err := doublestar.Glob(rootSearchDirFS, relPattern)
+
+		if err != nil {
+			fmt.Println("Error in doublestar.Glob: ", err.Error())
+		}
+
+		relativeExcludePathsList = append(relativeExcludePathsList, matchedFiles...)
+	}
+
+	classInfoStore := ClassesInfoStore{
+		CompleteClassPathPrefix:         completePathPrefix,
+		RelativeClassPath:               relativePath,
+		IncludeClassesRelativePathsList: relativeIncludePathsList,
+		ExcludeClassesRelativePathsList: relativeExcludePathsList,
+	}
+
+	return classInfoStore, nil
 }
 
 func TrimStrings(input []string) []string {

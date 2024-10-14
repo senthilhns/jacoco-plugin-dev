@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -12,12 +11,9 @@ type JacocoPlugin struct {
 }
 
 type JacocoPluginStateStore struct {
-	BuildRootPath     string
-	ExecFilePathsList []string
-	ClassFilesList    []string
-
-	ClassesCompletePathsList []string
-	ClassesRelativePathsList []string
+	BuildRootPath        string
+	ExecFilePathsList    []string
+	ClassesInfoStoreList []ClassesInfoStore
 }
 
 type JacocoPluginParams struct {
@@ -53,15 +49,13 @@ func (p *JacocoPlugin) Init() error {
 	return nil
 }
 
-func (p *JacocoPlugin) InspectProcessArgs(
-	argNamesList []string) (map[string]interface{}, error) {
+func (p *JacocoPlugin) InspectProcessArgs(argNamesList []string) (map[string]interface{}, error) {
 
 	m := map[string]interface{}{}
 	for _, argName := range argNamesList {
 		switch argName {
-		case ClassFilesListParamKey:
-			m["ClassesCompletePathsList"] = p.ClassesCompletePathsList
-			m["ClassesRelativePathsList"] = p.ClassesRelativePathsList
+		case ClassesInfoStoreListParamKey:
+			m[argName] = p.ClassesInfoStoreList
 		}
 	}
 	return m, nil
@@ -126,18 +120,17 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 	p.ClassInclusionPatterns = args.ClassInclusionPatterns
 	p.ClassExclusionPatterns = args.ClassExclusionPatterns
 
-	classesCompletePathsList, classesRelativePathsList, err :=
+	classesInfoStoreList, err :=
 		FilterFileOrDirUsingGlobPatterns(p.BuildRootPath, p.GetClassPatternsStrArray(),
-			p.ClassInclusionPatterns, p.ClassExclusionPatterns)
-
-	fmt.Println("CCCCCCCCCCCCC", classesRelativePathsList)
+			p.ClassInclusionPatterns, p.ClassExclusionPatterns, AllClassesAutoFillGlob)
 
 	if err != nil {
 		LogPrintln(p, "JacocoPlugin Error in IsClassArgOk: "+err.Error())
 		return GetNewError("Error in IsClassArgOk: " + err.Error())
 	}
 
-	p.ClassesCompletePathsList, p.ClassesRelativePathsList = classesCompletePathsList, classesRelativePathsList
+	p.ClassesInfoStoreList = classesInfoStoreList
+
 	return nil
 }
 
@@ -194,8 +187,10 @@ func (p *JacocoPlugin) GetPluginType() string {
 }
 
 const (
-	BuildRootPathKeyStr    = "BUILD_ROOT_PATH"
-	ClassFilesListParamKey = "ClassFilesList"
+	BuildRootPathKeyStr          = "BUILD_ROOT_PATH"
+	ClassFilesListParamKey       = "ClassFilesList"
+	ClassesInfoStoreListParamKey = "ClassesInfoStoreList"
+	AllClassesAutoFillGlob       = "**/*.class"
 )
 
 //
