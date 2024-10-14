@@ -40,10 +40,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestIsBuildRootExists(t *testing.T) {
-	args := Args{
-		Pipeline:           Pipeline{},
-		CoveragePluginArgs: CoveragePluginArgs{PluginToolType: JacocoPluginType},
-	}
+	args := GetTestNewArgs()
 
 	err := Exec(context.TODO(), args)
 	if err != nil {
@@ -51,5 +48,38 @@ func TestIsBuildRootExists(t *testing.T) {
 	}
 
 }
+
+func TestExecPathPatterns(t *testing.T) {
+	args := GetTestNewArgs()
+
+	err := Exec(context.TODO(), args)
+	if err != nil {
+		t.Errorf("Error in TestExecPathPatterns: %s", err.Error())
+	}
+
+}
+
+func TestEmptyExecPathPattern(t *testing.T) {
+	args := GetTestNewArgs()
+	args.ExecFilesPathPattern = ""
+	err := Exec(context.TODO(), args)
+	if err == nil {
+		t.Errorf("Error in TestEmptyExecPathPattern is accepted")
+	}
+}
+
+func GetTestNewArgs() Args {
+	args := Args{
+		Pipeline:           Pipeline{},
+		CoveragePluginArgs: CoveragePluginArgs{PluginToolType: JacocoPluginType},
+		EnvPluginInputArgs: EnvPluginInputArgs{ExecFilesPathPattern: TestBuildRootPath},
+	}
+
+	return args
+}
+
+const (
+	TestBuildRootPath = "/opt/hns/test-resources/game-of-life-master/gameoflife-core/target/jacoco.exec"
+)
 
 //

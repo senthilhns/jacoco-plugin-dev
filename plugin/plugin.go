@@ -10,6 +10,7 @@ import (
 
 type Plugin interface {
 	Init() error
+	SetBuildRoot(buildRootPath string) error
 	DeInit() error
 	ValidateAndProcessArgs(args Args) error
 	Run() error
@@ -35,6 +36,7 @@ func GetNewPlugin(ctx context.Context, args Args) (Plugin, error) {
 type Args struct {
 	Pipeline
 	CoveragePluginArgs
+	EnvPluginInputArgs
 	Level string `envconfig:"PLUGIN_LOG_LEVEL"`
 }
 
@@ -42,6 +44,10 @@ type CoveragePluginArgs struct {
 	PluginToolType        string `envconfig:"PLUGIN_TOOL"`
 	PluginFailOnThreshold bool   `envconfig:"PLUGIN_FAIL_ON_THRESHOLD"`
 	PluginFailIfNoReports bool   `envconfig:"PLUGIN_FAIL_IF_NO_REPORTS"`
+}
+
+type EnvPluginInputArgs struct {
+	ExecFilesPathPattern string `envconfig:"PLUGIN_REPORTS_PATH_PATTERN"`
 }
 
 func Exec(ctx context.Context, args Args) error {

@@ -75,11 +75,20 @@ func (p *JacocoPlugin) DeInit() error {
 func (p *JacocoPlugin) ValidateAndProcessArgs(args Args) error {
 	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
 
+	err := p.IsExecFileArgOk(args)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in ValidateAndProcessArgs: "+err.Error())
+		return err
+	}
 	return nil
 }
 
 func (p *JacocoPlugin) IsExecFileArgOk(args Args) error {
 	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
+
+	if args.ExecFilesPathPattern == "" {
+		return GetNewError("Error in IsExecFileArgOk: ExecFilesPathPattern is empty")
+	}
 
 	return nil
 }
