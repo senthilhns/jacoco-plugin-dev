@@ -13,7 +13,8 @@ type JacocoPlugin struct {
 type JacocoPluginStateStore struct {
 	BuildRootPath        string
 	ExecFilePathsList    []string
-	ClassesInfoStoreList []ClassesInfoStore
+	ClassesInfoStoreList []FilesInfoStore
+	FinalizedClassesList []IncludeExcludesMerged
 }
 
 type JacocoPluginParams struct {
@@ -130,6 +131,8 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 	}
 
 	p.ClassesInfoStoreList = classesInfoStoreList
+
+	p.FinalizedClassesList = MergeIncludeExcludeFilePaths(p.ClassesInfoStoreList)
 
 	return nil
 }

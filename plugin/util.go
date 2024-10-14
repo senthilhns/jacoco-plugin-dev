@@ -90,9 +90,9 @@ func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error
 }
 
 func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []string,
-	includeGlobPatternCsvStr, excludeGlobPatternCsvStr string, autoFillIncludePattern string) ([]ClassesInfoStore, error) {
+	includeGlobPatternCsvStr, excludeGlobPatternCsvStr string, autoFillIncludePattern string) ([]FilesInfoStore, error) {
 
-	var classesInfoStoreList []ClassesInfoStore
+	var classesInfoStoreList []FilesInfoStore
 
 	if len(includeGlobPatternCsvStr) == 0 {
 		if len(autoFillIncludePattern) > 0 {
@@ -130,15 +130,54 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 	return classesInfoStoreList, nil
 }
 
-type ClassesInfoStore struct {
+type FilesInfoStore struct {
 	CompleteClassPathPrefix         string
 	RelativeClassPath               string
 	IncludeClassesRelativePathsList []string
 	ExcludeClassesRelativePathsList []string
 }
 
+type IncludeExcludesMerged struct {
+	CompletePathPrefix string
+	RelativePathsList  []string
+}
+
+func MergeIncludeExcludeFilePaths(filesInfoStore []FilesInfoStore) []IncludeExcludesMerged {
+	mergedResults := make(map[string]map[string]struct{})
+
+	for _, fileInfo := range filesInfoStore {
+		if _, exists := mergedResults[fileInfo.CompleteClassPathPrefix]; !exists {
+			mergedResults[fileInfo.CompleteClassPathPrefix] = make(map[string]struct{})
+		}
+		excludeSet := make(map[string]struct{})
+		for _, excludePath := range fileInfo.ExcludeClassesRelativePathsList {
+			excludeSet[excludePath] = struct{}{}
+		}
+
+		for _, includePath := range fileInfo.IncludeClassesRelativePathsList {
+			if _, excluded := excludeSet[includePath]; !excluded {
+				mergedResults[fileInfo.CompleteClassPathPrefix][includePath] = struct{}{}
+			}
+		}
+	}
+
+	var result []IncludeExcludesMerged
+	for prefix, paths := range mergedResults {
+		var relativePaths []string
+		for path := range paths {
+			relativePaths = append(relativePaths, path)
+		}
+		result = append(result, IncludeExcludesMerged{
+			CompletePathPrefix: prefix,
+			RelativePathsList:  relativePaths,
+		})
+	}
+
+	return result
+}
+
 func WalkDir2(completePath, relativePath, completePathPrefix string,
-	includeGlobPatternStrList, excludeGlobPatternStrList []string) (ClassesInfoStore, error) {
+	includeGlobPatternStrList, excludeGlobPatternStrList []string) (FilesInfoStore, error) {
 
 	relativeIncludePathsList := []string{}
 	relativeExcludePathsList := []string{}
@@ -169,7 +208,7 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 		relativeExcludePathsList = append(relativeExcludePathsList, matchedFiles...)
 	}
 
-	classInfoStore := ClassesInfoStore{
+	classInfoStore := FilesInfoStore{
 		CompleteClassPathPrefix:         completePathPrefix,
 		RelativeClassPath:               relativePath,
 		IncludeClassesRelativePathsList: relativeIncludePathsList,

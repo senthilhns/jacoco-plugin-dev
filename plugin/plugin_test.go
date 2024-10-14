@@ -116,12 +116,7 @@ func (c *ClassesTestInfo) isAllRequiredExcludePathsPresent(requiredExcludePaths 
 	return true
 }
 
-func TestClassPathWithIncludeExcludeVariations(t *testing.T) {
-	CheckClassPathWithNoIncludeNoExclude(t)
-	CheckClassPathWithIncludeAndExclude(t)
-}
-
-func CheckClassPathWithNoIncludeNoExclude(t *testing.T) {
+func TestClassPathWithNoIncludeNoExclude(t *testing.T) {
 
 	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
 		"/opt/hns/test-resources/game-of-life-master/**/WEB-INF/classes"
@@ -145,7 +140,7 @@ func CheckClassPathWithNoIncludeNoExclude(t *testing.T) {
 
 }
 
-func CheckClassPathWithIncludeAndExclude(t *testing.T) {
+func TestClassPathWithIncludeAndExclude(t *testing.T) {
 
 	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
 		"/opt/hns/test-resources/game-of-life-master/**/WEB-INF/classes"
