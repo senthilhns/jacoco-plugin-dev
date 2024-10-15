@@ -41,3 +41,5 @@ java -jar jacoco.jar \
     --xml /tmp/jacoco.xml
 
 
+rm -rvf /opt/hns/test-resources/game-of-life-master/jacoco-workspace--* && BUILD_ROOT_PATH=/opt/hns/test-resources/game-of-life-master go test -count=1 -run ^TestSourcePathWithIncludeAndExclude$
+
