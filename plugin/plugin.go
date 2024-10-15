@@ -13,6 +13,7 @@ type Plugin interface {
 	SetBuildRoot(buildRootPath string) error
 	DeInit() error
 	ValidateAndProcessArgs(args Args) error
+	DoPostArgsValidationSetup(args Args) error
 	Run() error
 	WriteOutputVariables() error
 	PersistResults() error
@@ -78,6 +79,11 @@ func Exec(ctx context.Context, args Args) (Plugin, error) {
 	}(plugin)
 
 	err = plugin.ValidateAndProcessArgs(args)
+	if err != nil {
+		return plugin, err
+	}
+
+	err = plugin.DoPostArgsValidationSetup(args)
 	if err != nil {
 		return plugin, err
 	}

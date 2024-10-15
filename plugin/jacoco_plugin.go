@@ -1,7 +1,9 @@
 package plugin
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type JacocoPlugin struct {
@@ -19,6 +21,8 @@ type JacocoPluginStateStore struct {
 
 	SourcesInfoStoreList []FilesInfoStore
 	FinalizedSourcesList []IncludeExcludesMerged
+
+	JacocoWorkSpaceDir string
 }
 
 type JacocoPluginParams struct {
@@ -51,7 +55,41 @@ func (p *JacocoPlugin) Init() error {
 		return err
 	}
 
+	err = p.CreateNewWorkspace()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
+		return err
+	}
+
 	return nil
+}
+
+func (p *JacocoPlugin) CreateNewWorkspace() error {
+
+	buildRootPath, err := p.GetBuildRootPath()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: "+err.Error())
+		return GetNewError("Error in CopyClassesToWorkspace: " + err.Error())
+	}
+
+	jacocoWorkSpaceDir, err := GetRandomJacocoWorkspaceDir(buildRootPath)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
+		return err
+	}
+	p.JacocoWorkSpaceDir = jacocoWorkSpaceDir
+
+	err = CreateDir(p.JacocoWorkSpaceDir)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) GetWorkspaceDir() string {
+	return p.JacocoWorkSpaceDir
 }
 
 func (p *JacocoPlugin) InspectProcessArgs(argNamesList []string) (map[string]interface{}, error) {
@@ -68,10 +106,27 @@ func (p *JacocoPlugin) InspectProcessArgs(argNamesList []string) (map[string]int
 	return m, nil
 }
 
-func (p *JacocoPlugin) SetBuildRoot(buildRootPath string) error {
+func (p *JacocoPlugin) GetBuildRootPath() (string, error) {
+	buildRootPath := os.Getenv(BuildRootPathKeyStr)
 
 	if buildRootPath == "" {
-		buildRootPath = os.Getenv(BuildRootPathKeyStr)
+		LogPrintln(p, "JacocoPlugin Error in GetBuildRootPath: Build root path is empty")
+		return "", GetNewError("Error in GetBuildRootPath: Build")
+	}
+
+	return buildRootPath, nil
+}
+
+func (p *JacocoPlugin) SetBuildRoot(buildRootPath string) error {
+
+	var err error
+
+	if buildRootPath == "" {
+		buildRootPath, err = p.GetBuildRootPath()
+		if err != nil {
+			LogPrintln(p, "JacocoPlugin Error in SetBuildRoot: "+err.Error())
+			return err
+		}
 	}
 
 	ok, err := IsDirExists(buildRootPath)
@@ -119,6 +174,77 @@ func (p *JacocoPlugin) ValidateAndProcessArgs(args Args) error {
 	return nil
 }
 
+func (p *JacocoPlugin) GetClassesList() []IncludeExcludesMerged {
+	return p.FinalizedClassesList
+}
+
+func (p *JacocoPlugin) GetSourcesList() []IncludeExcludesMerged {
+	return p.FinalizedSourcesList
+}
+
+func (p *JacocoPlugin) DoPostArgsValidationSetup(args Args) error {
+	LogPrintln(p, "JacocoPlugin DoPostArgsValidationSetup")
+
+	err := p.CopyClassesToWorkspace()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in DoPostArgsValidationSetup: "+err.Error())
+		return err
+	}
+
+	err = p.CopySourcesToWorkspace()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in DoPostArgsValidationSetup: "+err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) CopyClassesToWorkspace() error {
+
+	classesList := p.GetClassesList()
+	if len(classesList) < 1 {
+		LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: No class files to copy")
+		return GetNewError("Error in CopyClassesToWorkspace: No class files to copy")
+	}
+
+	dstClassesDir := filepath.Join(p.GetWorkspaceDir(), "classes")
+	LogPrintln(p, "JacocoPlugin Copying classes to workspace: "+dstClassesDir)
+	err := CreateDir(dstClassesDir)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: "+err.Error())
+		return GetNewError("Error in CopyClassesToWorkspace: " + err.Error())
+	}
+
+	for _, classInfo := range classesList {
+		fmt.Println("CompletePathPrefix ", classInfo.CompletePathPrefix)
+
+		classInfo.CopyTo(dstClassesDir, p.BuildRootPath)
+
+		for _, classFile := range classInfo.RelativePathsList {
+			fmt.Println("Copying class file: ", classFile)
+		}
+
+		//err := CopyFile(classInfo.FilePath, p.BuildRootPath)
+		//if err != nil {
+		//	LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: "+err.Error())
+		//	return GetNewError("Error in CopyClassesToWorkspace: " + err.Error())
+		//}
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) CopySourcesToWorkspace() error {
+
+	if p.SkipCopyOfSrcFiles {
+		LogPrintln(p, "JacocoPlugin Skipping copying of source files")
+		return nil
+	}
+
+	return nil
+}
+
 func (p *JacocoPlugin) GetClassPatternsStrArray() []string {
 	return ToStringArrayFromCsvString(p.ClassPatterns)
 }
@@ -129,6 +255,11 @@ func (p *JacocoPlugin) GetSourcePatternsStrArray() []string {
 
 func (p *JacocoPlugin) IsSourceArgOk(args Args) error {
 	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
+
+	if p.SkipCopyOfSrcFiles {
+		LogPrintln(p, "JacocoPlugin Skipping copying of source files")
+		return nil
+	}
 
 	if args.SourcePattern == "" {
 		return GetNewError("Error in IsSourceArgOk: SourcePattern is empty")
@@ -174,7 +305,9 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 	}
 
 	p.ClassesInfoStoreList = classesInfoStoreList
-	p.FinalizedClassesList = MergeIncludeExcludeFilePaths(p.ClassesInfoStoreList)
+	// p.FinalizedClassesList = MergeIncludeExcludeFilePaths(p.ClassesInfoStoreList)
+
+	p.FinalizedClassesList = MergeIncludeExcludeFileCompletePaths(p.ClassesInfoStoreList)
 
 	if len(p.FinalizedClassesList) < 1 {
 		LogPrintln(p, "Error in IsClassArgOk: No class inferred from class patterns")

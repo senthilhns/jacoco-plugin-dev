@@ -5,7 +5,9 @@
 package plugin
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -130,15 +132,109 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 }
 
 type FilesInfoStore struct {
-	CompleteClassPathPrefix         string
-	RelativeClassPath               string
+	IncludedPathsListWithPrefix []PathWithPrefix
+	ExcludedPathsListWithPrefix []PathWithPrefix
+
+	CompleteClassPathPrefix string
+	RelativeClassPath       string
+
 	IncludeClassesRelativePathsList []string
+	IncludeClassesCompletePathsList []string
+
 	ExcludeClassesRelativePathsList []string
+	ExcludeClassesCompletePathsList []string
 }
 
 type IncludeExcludesMerged struct {
 	CompletePathPrefix string
 	RelativePathsList  []string
+	CompletePathsList  []string
+
+	CompletePathsWithPrefixList []PathWithPrefix
+}
+
+func (i *IncludeExcludesMerged) CopyTo(toDstPathPrefix, buildRootPath string) error {
+
+	err := i.CreateUniqueDirs(toDstPathPrefix)
+	if err != nil {
+		LogPrintln(nil, "Error in CreateUniqueDirs: ", err.Error())
+		return err
+	}
+
+	for _, pathWithPrefix := range i.CompletePathsWithPrefixList {
+		prefix := pathWithPrefix.CompletePathPrefix
+		relPath := pathWithPrefix.RelativePath
+
+		srcPath := filepath.Join(prefix, relPath)
+		dstPath := filepath.Join(toDstPathPrefix, relPath)
+
+		err := CopyFile(srcPath, dstPath)
+		if err != nil {
+			fmt.Println("** Error **:  in copying file: ", err.Error())
+		}
+	}
+
+	return nil
+}
+
+func CopyFile(src, dst string) error {
+	// Open the source file
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer sourceFile.Close()
+
+	// Create the destination file
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	// Copy the contents from source to destination
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return fmt.Errorf("failed to copy content: %w", err)
+	}
+
+	// Flush content to disk to ensure everything is written
+	err = destFile.Sync()
+	if err != nil {
+		return fmt.Errorf("failed to sync destination file: %w", err)
+	}
+
+	return nil
+}
+
+func (i *IncludeExcludesMerged) CreateUniqueDirs(toDstPathPrefix string) error {
+	uniqueDirs := i.GetAllUniqueDirs(toDstPathPrefix)
+	for _, dir := range uniqueDirs {
+		newDir := filepath.Join(toDstPathPrefix, dir)
+		err := CreateDir(newDir)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (i *IncludeExcludesMerged) GetAllUniqueDirs(toDstPathPrefix string) []string {
+
+	uniqueDirsMap := map[string]bool{}
+	_ = uniqueDirsMap
+
+	for _, pathWithPrefix := range i.CompletePathsWithPrefixList {
+		curDir := filepath.Dir(pathWithPrefix.RelativePath)
+		uniqueDirsMap[curDir] = true
+	}
+
+	uniqDirsList := []string{}
+	for dir := range uniqueDirsMap {
+		uniqDirsList = append(uniqDirsList, dir)
+	}
+
+	return uniqDirsList
 }
 
 func MergeIncludeExcludeFilePaths(filesInfoStore []FilesInfoStore) []IncludeExcludesMerged {
@@ -175,11 +271,57 @@ func MergeIncludeExcludeFilePaths(filesInfoStore []FilesInfoStore) []IncludeExcl
 	return result
 }
 
+func MergeIncludeExcludeFileCompletePaths(filesInfoStore []FilesInfoStore) []IncludeExcludesMerged {
+
+	validFileList := []string{}
+	excludeMap := make(map[string]bool)
+	var validFilesListWithPrefix []PathWithPrefix
+
+	for _, fileInfo := range filesInfoStore {
+		for _, excludedPathWithPrefix := range fileInfo.ExcludedPathsListWithPrefix {
+			excludeFileCompletePath := filepath.Join(excludedPathWithPrefix.CompletePathPrefix,
+				excludedPathWithPrefix.RelativePath)
+			excludeMap[excludeFileCompletePath] = true
+		}
+	}
+
+	for _, fileInfo := range filesInfoStore {
+		for _, includedPathWithPrefix := range fileInfo.IncludedPathsListWithPrefix {
+			includedFileCompletePath := filepath.Join(includedPathWithPrefix.CompletePathPrefix,
+				includedPathWithPrefix.RelativePath)
+			if _, excluded := excludeMap[includedFileCompletePath]; !excluded {
+				validFileList = append(validFileList, includedFileCompletePath)
+				validFilesListWithPrefix = append(validFilesListWithPrefix, includedPathWithPrefix)
+			}
+		}
+	}
+
+	var result []IncludeExcludesMerged
+	includeExcludesMerged := IncludeExcludesMerged{
+		CompletePathPrefix:          "",
+		CompletePathsList:           validFileList,
+		CompletePathsWithPrefixList: validFilesListWithPrefix,
+	}
+	result = append(result, includeExcludesMerged)
+	return result
+}
+
+type PathWithPrefix struct {
+	CompletePathPrefix string
+	RelativePath       string
+}
+
 func WalkDir2(completePath, relativePath, completePathPrefix string,
 	includeGlobPatternStrList, excludeGlobPatternStrList []string) (FilesInfoStore, error) {
 
 	relativeIncludePathsList := []string{}
 	relativeExcludePathsList := []string{}
+
+	includedCompletePathsList := []string{}
+	excludedCompletePathsList := []string{}
+
+	var includedPathsListWithPrefix []PathWithPrefix
+	var excludedPathsListWithPrefix []PathWithPrefix
 
 	for _, includeGlobPatternStr := range includeGlobPatternStrList {
 
@@ -189,6 +331,17 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 
 		if err != nil {
 			fmt.Println("Error in doublestar.Glob: ", err.Error())
+			return FilesInfoStore{}, err
+		}
+
+		for _, matchedFile := range matchedFiles {
+			matchedFileCompletePath := filepath.Join(completePath, matchedFile)
+			includedCompletePathsList = append(includedCompletePathsList, matchedFileCompletePath)
+			pathWithPrefix := PathWithPrefix{
+				CompletePathPrefix: completePath,
+				RelativePath:       matchedFile,
+			}
+			includedPathsListWithPrefix = append(includedPathsListWithPrefix, pathWithPrefix)
 		}
 
 		relativeIncludePathsList = append(relativeIncludePathsList, matchedFiles...)
@@ -203,6 +356,16 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 			fmt.Println("Error in doublestar.Glob: ", err.Error())
 		}
 
+		for _, matchedFile := range matchedFiles {
+			matchedFileCompletePath := filepath.Join(completePath, matchedFile)
+			excludedCompletePathsList = append(excludedCompletePathsList, matchedFileCompletePath)
+			pathWithPrefix := PathWithPrefix{
+				CompletePathPrefix: completePath,
+				RelativePath:       matchedFile,
+			}
+			excludedPathsListWithPrefix = append(excludedPathsListWithPrefix, pathWithPrefix)
+		}
+
 		relativeExcludePathsList = append(relativeExcludePathsList, matchedFiles...)
 	}
 
@@ -210,7 +373,11 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 		CompleteClassPathPrefix:         completePathPrefix,
 		RelativeClassPath:               relativePath,
 		IncludeClassesRelativePathsList: relativeIncludePathsList,
+		IncludeClassesCompletePathsList: includedCompletePathsList,
 		ExcludeClassesRelativePathsList: relativeExcludePathsList,
+		ExcludeClassesCompletePathsList: excludedCompletePathsList,
+		IncludedPathsListWithPrefix:     includedPathsListWithPrefix,
+		ExcludedPathsListWithPrefix:     excludedPathsListWithPrefix,
 	}
 
 	return classInfoStore, nil
@@ -259,3 +426,51 @@ func ToStructFromJsonString[T any](jsonStr string) (T, error) {
 	err := json.Unmarshal([]byte(jsonStr), &v)
 	return v, err
 }
+
+func GetRandomDir(absolutePrefixPath, workspacePrefixStr string) (string, error) {
+	randomStr, err := generateRandomString(8)
+	if err != nil {
+		return "", err
+	}
+
+	dirName := fmt.Sprintf("%s-%s", workspacePrefixStr, randomStr)
+	completePath := filepath.Join(absolutePrefixPath, dirName)
+
+	if _, err := os.Stat(completePath); os.IsNotExist(err) {
+		if err := os.MkdirAll(completePath, os.ModePerm); err != nil {
+			return "", fmt.Errorf("failed to create directory: %w", err)
+		}
+		return completePath, nil
+	} else if err != nil {
+		return "", fmt.Errorf("failed to check directory: %w", err)
+	}
+
+	return GetRandomDir(absolutePrefixPath, workspacePrefixStr)
+}
+
+func GetRandomJacocoWorkspaceDir(absolutePrefixPath string) (string, error) {
+	return GetRandomDir(absolutePrefixPath, "jacoco-workspace-")
+}
+
+func generateRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func CreateDir(absolutePath string) error {
+	if absolutePath == "" || absolutePath == "." || absolutePath == ".." {
+		return nil
+	}
+
+	err := os.MkdirAll(absolutePath, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", absolutePath, err)
+	}
+	return nil
+}
+
+//
+//
