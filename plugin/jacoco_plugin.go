@@ -208,6 +208,18 @@ func (p *JacocoPlugin) DoPostArgsValidationSetup(args Args) error {
 	return nil
 }
 
+func (p *JacocoPlugin) GetExecFilesWorkSpaceDir() string {
+	return filepath.Join(p.GetWorkspaceDir(), "execFiles")
+}
+
+func (p *JacocoPlugin) GetClassesWorkSpaceDir() string {
+	return filepath.Join(p.GetWorkspaceDir(), "classes")
+}
+
+func (p *JacocoPlugin) GetSourcesWorkSpaceDir() string {
+	return filepath.Join(p.GetWorkspaceDir(), "sources")
+}
+
 func (p *JacocoPlugin) CopyJacocoExecFilesToWorkspace() error {
 	uniqueDirs, err := p.GetJacocoExecFilesUniqueDirs()
 	if err != nil {
@@ -215,7 +227,7 @@ func (p *JacocoPlugin) CopyJacocoExecFilesToWorkspace() error {
 		return err
 	}
 
-	execFilesDir := filepath.Join(p.GetWorkspaceDir(), "execFiles")
+	execFilesDir := p.GetExecFilesWorkSpaceDir()
 	LogPrintln(p, "JacocoPlugin Copying Exec files to workspace: "+execFilesDir)
 	err = CreateDir(execFilesDir)
 	if err != nil {
@@ -274,7 +286,7 @@ func (p *JacocoPlugin) CopyClassesToWorkspace() error {
 		return GetNewError("Error in CopyClassesToWorkspace: No class files to copy")
 	}
 
-	dstClassesDir := filepath.Join(p.GetWorkspaceDir(), "classes")
+	dstClassesDir := p.GetClassesWorkSpaceDir()
 	LogPrintln(p, "JacocoPlugin Copying classes to workspace: "+dstClassesDir)
 
 	err := CreateDir(dstClassesDir)
@@ -304,7 +316,7 @@ func (p *JacocoPlugin) CopySourcesToWorkspace() error {
 		return nil
 	}
 
-	dstSourcesDir := filepath.Join(p.GetWorkspaceDir(), "sources")
+	dstSourcesDir := p.GetSourcesWorkSpaceDir()
 	LogPrintln(p, "JacocoPlugin Copying sources to workspace: "+dstSourcesDir)
 	err := CreateDir(dstSourcesDir)
 	if err != nil {
