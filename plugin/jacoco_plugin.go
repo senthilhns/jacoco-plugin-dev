@@ -210,6 +210,7 @@ func (p *JacocoPlugin) CopyClassesToWorkspace() error {
 
 	dstClassesDir := filepath.Join(p.GetWorkspaceDir(), "classes")
 	LogPrintln(p, "JacocoPlugin Copying classes to workspace: "+dstClassesDir)
+
 	err := CreateDir(dstClassesDir)
 	if err != nil {
 		LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: "+err.Error())
@@ -225,11 +226,6 @@ func (p *JacocoPlugin) CopyClassesToWorkspace() error {
 			fmt.Println("Copying class file: ", classFile)
 		}
 
-		//err := CopyFile(classInfo.FilePath, p.BuildRootPath)
-		//if err != nil {
-		//	LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: "+err.Error())
-		//	return GetNewError("Error in CopyClassesToWorkspace: " + err.Error())
-		//}
 	}
 
 	return nil
@@ -240,6 +236,20 @@ func (p *JacocoPlugin) CopySourcesToWorkspace() error {
 	if p.SkipCopyOfSrcFiles {
 		LogPrintln(p, "JacocoPlugin Skipping copying of source files")
 		return nil
+	}
+
+	dstSourcesDir := filepath.Join(p.GetWorkspaceDir(), "sources")
+	LogPrintln(p, "JacocoPlugin Copying sources to workspace: "+dstSourcesDir)
+	err := CreateDir(dstSourcesDir)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in CopySourcesToWorkspace: "+err.Error())
+		return GetNewError("Error in CopySourcesToWorkspace: " + err.Error())
+	}
+
+	sourcesList := p.GetSourcesList()
+	for _, sourceInfo := range sourcesList {
+		sourceInfo.CopySourceTo(dstSourcesDir, p.BuildRootPath)
+
 	}
 
 	return nil
@@ -278,7 +288,7 @@ func (p *JacocoPlugin) IsSourceArgOk(args Args) error {
 	}
 
 	p.SourcesInfoStoreList = sourcesInfoStoreList
-	p.FinalizedSourcesList = MergeIncludeExcludeFilePaths(p.SourcesInfoStoreList)
+	p.FinalizedSourcesList = MergeIncludeExcludeFileCompletePaths(p.SourcesInfoStoreList)
 
 	return nil
 

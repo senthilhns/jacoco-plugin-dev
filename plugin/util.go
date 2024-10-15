@@ -94,7 +94,7 @@ func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error
 func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []string,
 	includeGlobPatternCsvStr, excludeGlobPatternCsvStr string, autoFillIncludePattern string) ([]FilesInfoStore, error) {
 
-	var classesInfoStoreList []FilesInfoStore
+	var filesStoreList []FilesInfoStore
 
 	if len(includeGlobPatternCsvStr) == 0 {
 		if len(autoFillIncludePattern) > 0 {
@@ -113,22 +113,22 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 
 		matchedDirs, err := doublestar.Glob(rootSearchDirFS, relPattern)
 		if err != nil {
-			return classesInfoStoreList, err
+			return filesStoreList, err
 		}
 		for _, relativePath := range matchedDirs {
 			completePath := filepath.Join(rootSearchDir, relativePath)
-			classesInfoStore, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
+			filesInfoStore, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
 				includeGlobPatternStrList, excludeGlobPatternStrList)
 			if err != nil {
 				fmt.Println("Error in WalkDir: ", err.Error())
-				return classesInfoStoreList, err
+				return filesStoreList, err
 			}
-			classesInfoStoreList = append(classesInfoStoreList, classesInfoStore)
+			filesStoreList = append(filesStoreList, filesInfoStore)
 		}
 
 	}
 
-	return classesInfoStoreList, nil
+	return filesStoreList, nil
 }
 
 type FilesInfoStore struct {
@@ -177,28 +177,96 @@ func (i *IncludeExcludesMerged) CopyTo(toDstPathPrefix, buildRootPath string) er
 	return nil
 }
 
+func (i *IncludeExcludesMerged) CopySourceTo(toDstPathPrefix, buildRootPath string) error {
+
+	uniqueDirs := i.GetAllUniqueDirsForSource(toDstPathPrefix, buildRootPath)
+	for _, dir := range uniqueDirs {
+		err := CreateDir(dir)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, prefixWithPath := range i.CompletePathsWithPrefixList {
+
+		prefix := prefixWithPath.CompletePathPrefix
+		relPath := prefixWithPath.RelativePath
+		srcPath := filepath.Join(prefix, relPath)
+
+		pos := strings.Index(srcPath, buildRootPath)
+		if pos == -1 {
+			fmt.Println("Target not found in the path")
+			continue
+		}
+
+		if pos == 0 {
+			skipLen := len(buildRootPath)
+			tmpFilePath := srcPath[skipLen:]
+			dstFile := filepath.Join(toDstPathPrefix, tmpFilePath)
+
+			err := CopyFile(srcPath, dstFile)
+			if err != nil {
+				fmt.Println("Error in copying file: ", err.Error())
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
+func (i *IncludeExcludesMerged) GetAllUniqueDirsForSource(toDstPathPrefix, buildRootPath string) []string {
+
+	sourceFilesDirMap := map[string]bool{}
+
+	for _, prefixWithPath := range i.CompletePathsWithPrefixList {
+		prefix := prefixWithPath.CompletePathPrefix
+		relPath := prefixWithPath.RelativePath
+
+		srcPath := filepath.Join(prefix, relPath)
+		pos := strings.Index(srcPath, buildRootPath)
+		if pos == -1 {
+			fmt.Println("Target not found in the path")
+			continue
+		}
+
+		if pos == 0 {
+			skipLen := len(buildRootPath)
+			tmpFilePath := srcPath[skipLen:]
+			dstFile := filepath.Join(toDstPathPrefix, tmpFilePath)
+
+			dirPath := filepath.Dir(dstFile)
+			sourceFilesDirMap[dirPath] = true
+		}
+
+	}
+
+	var uniqueDirs []string
+	for dir := range sourceFilesDirMap {
+		uniqueDirs = append(uniqueDirs, dir)
+	}
+
+	return uniqueDirs
+}
+
 func CopyFile(src, dst string) error {
-	// Open the source file
 	sourceFile, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
 	defer sourceFile.Close()
 
-	// Create the destination file
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
 	defer destFile.Close()
 
-	// Copy the contents from source to destination
 	_, err = io.Copy(destFile, sourceFile)
 	if err != nil {
 		return fmt.Errorf("failed to copy content: %w", err)
 	}
 
-	// Flush content to disk to ensure everything is written
 	err = destFile.Sync()
 	if err != nil {
 		return fmt.Errorf("failed to sync destination file: %w", err)
