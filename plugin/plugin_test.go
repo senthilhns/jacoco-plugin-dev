@@ -2,7 +2,9 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -93,6 +95,7 @@ func (c *ClassesTestInfo) isAllRequiredIncludePathsPresent(requiredIncludePaths 
 
 	for _, required := range requiredIncludePaths {
 		if _, found := pathSet[required]; !found {
+			fmt.Println("Required path not found: ", required)
 			return false
 		}
 	}
@@ -177,37 +180,67 @@ type SourceTestInfo struct {
 	} `json:"FinalizedSourcesList"`
 }
 
+type WorkSpaceInfo struct {
+	WorkSpaceCompletePathKeyStr struct {
+		Classes   string `json:"classes"`
+		ExecFiles string `json:"execFiles"`
+		Sources   string `json:"sources"`
+		Workspace string `json:"workspace"`
+	} `json:"WorkSpaceCompletePathKeyStr"`
+}
+
 func CheckSourceAndClassPathsWithIncludeExcludeVariations(
 	sourcePattern, sourceInclusionPattern, sourceExclusionPattern,
 	classPatterns, classInclusionPatterns, classExclusionPatterns string,
 	expectedIncludePaths, expectedExcludePaths []string, t *testing.T) {
 
-	sourcesInfo, err := CheckSourcePathsWithClassPaths(classPatterns, classInclusionPatterns, classExclusionPatterns,
-		sourcePattern, sourceInclusionPattern, sourceExclusionPattern, t)
+	plugin, _, err := CheckSourcePathsWithClassPaths(classPatterns, classInclusionPatterns,
+		classExclusionPatterns, sourcePattern, sourceInclusionPattern, sourceExclusionPattern, t)
 	if err != nil {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
 
-	sourcesJsonStr, err := ToJsonStringFromMap[map[string]interface{}](sourcesInfo)
-	if err != nil {
-		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
-	}
-	_ = sourcesJsonStr
-	// fmt.Println(sourcesJsonStr)
-
-	sti, err := ToStructFromJsonString[SourceTestInfo](sourcesJsonStr)
+	workSpaceInfoMap, err := plugin.InspectProcessArgs([]string{WorkSpaceCompletePathKeyStr})
 	if err != nil {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
 
-	isAllOk := sti.isAllRequiredIncludePathsPresent(expectedIncludePaths)
-	if !isAllOk {
-		t.Errorf("Error in TestClassPathWithIncludeExclude: Expected paths not found")
+	js, err := ToJsonStringFromMap[map[string]interface{}](workSpaceInfoMap)
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
 
-	isAllOk = sti.isAllRequiredExcludePathsPresent(expectedExcludePaths)
-	if !isAllOk {
-		t.Errorf("Error in TestClassPathWithIncludeExclude: Expected exclude paths not found")
+	wsi, err := ToStructFromJsonString[WorkSpaceInfo](js)
+	if err != nil {
+		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
+	}
+	CheckFilesCopiedToWorkSpace(wsi, t)
+}
+
+func CheckFilesCopiedToWorkSpace(wsi WorkSpaceInfo, t *testing.T) {
+	expectedFilesList := []string{
+		"$WORKSPACE/sources/gameoflife-core/src/main/java/com/wakaleo/gameoflife/domain/Universe.java",
+		"$WORKSPACE/sources/gameoflife-core/src/main/java/com/wakaleo/gameoflife/domain/Grid.java",
+		"$WORKSPACE/sources/gameoflife-core/src/main/java/com/wakaleo/gameoflife/domain/Cell.java",
+		"$WORKSPACE/sources/gameoflife-core/src/main/java/com/wakaleo/gameoflife/domain/GridReader.java",
+		"$WORKSPACE/sources/gameoflife-core/src/main/java/com/wakaleo/gameoflife/domain/GridWriter.java",
+		"$WORKSPACE/classes/pmd-rules.xml",
+		"$WORKSPACE/classes/com/wakaleo/gameoflife/domain/Universe.class",
+		"$WORKSPACE/classes/com/wakaleo/gameoflife/domain/Cell.class",
+		"$WORKSPACE/classes/com/wakaleo/gameoflife/domain/GridReader.class",
+		"$WORKSPACE/classes/com/wakaleo/gameoflife/domain/GridWriter.class",
+		"$WORKSPACE/classes/com/wakaleo/gameoflife/domain/Grid.class",
+		"$WORKSPACE/classes/custom-checkstyle.xml",
+		"$WORKSPACE/execFiles/gameoflife-core/target/jacoco.exec",
+		"$WORKSPACE/execFiles/gameoflife-web/target/jacoco.exec",
+	}
+
+	for _, expectedFile := range expectedFilesList {
+		completePath := strings.ReplaceAll(expectedFile, "$WORKSPACE", wsi.WorkSpaceCompletePathKeyStr.Workspace+"/")
+		fi, err := os.Stat(completePath)
+		if err != nil {
+			t.Errorf("Error in CheckFilesCopiedToWorkSpace: %s", err.Error())
+		}
 	}
 
 }
@@ -223,6 +256,7 @@ func (s *SourceTestInfo) isAllRequiredIncludePathsPresent(requiredIncludePaths [
 
 	for _, required := range requiredIncludePaths {
 		if _, found := pathSet[required]; !found {
+			fmt.Println("Required path not found: ", required)
 			return false
 		}
 	}
@@ -240,6 +274,7 @@ func (s *SourceTestInfo) isAllRequiredExcludePathsPresent(requiredExcludePaths [
 
 	for _, required := range requiredExcludePaths {
 		if _, found := excludePathSet[required]; !found {
+			fmt.Println("Required exclude path not found: ", required)
 			return false
 		}
 	}
@@ -248,7 +283,7 @@ func (s *SourceTestInfo) isAllRequiredExcludePathsPresent(requiredExcludePaths [
 
 func CheckSourcePathsWithClassPaths(classPattern, classInclusionPattern, classExclusionPattern,
 	sourcePattern, sourceInclusionPattern, sourceExclusionPattern string,
-	t *testing.T) (map[string]interface{}, error) {
+	t *testing.T) (Plugin, map[string]interface{}, error) {
 
 	args := GetTestNewArgs()
 	args.ClassPatterns = classPattern
@@ -268,7 +303,7 @@ func CheckSourcePathsWithClassPaths(classPattern, classInclusionPattern, classEx
 	if err != nil {
 		t.Errorf("Error in TestClassPathWithIncludeExclude: %s", err.Error())
 	}
-	return sourcesInfo, err
+	return plugin, sourcesInfo, err
 }
 
 func TestClassPathWithIncludeAndExclude(t *testing.T) {

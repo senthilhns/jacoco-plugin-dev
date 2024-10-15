@@ -13,7 +13,8 @@ type JacocoPlugin struct {
 }
 
 type JacocoPluginStateStore struct {
-	BuildRootPath               string
+	BuildRootPath string
+
 	ExecFilePathsWithPrefixList []PathWithPrefix
 
 	ClassesInfoStoreList []FilesInfoStore
@@ -103,7 +104,15 @@ func (p *JacocoPlugin) InspectProcessArgs(argNamesList []string) (map[string]int
 			m[argName] = p.ClassesInfoStoreList
 		case FinalizedSourcesListParamKey:
 			m[argName] = p.SourcesInfoStoreList
+		case WorkSpaceCompletePathKeyStr:
+			nm := map[string]string{}
+			nm["classes"] = p.GetClassesWorkSpaceDir()
+			nm["sources"] = p.GetSourcesWorkSpaceDir()
+			nm["execFiles"] = p.GetExecFilesWorkSpaceDir()
+			nm["workspace"] = p.GetWorkspaceDir()
+			m[argName] = nm
 		}
+
 	}
 	return m, nil
 }
@@ -298,7 +307,10 @@ func (p *JacocoPlugin) CopyClassesToWorkspace() error {
 	for _, classInfo := range classesList {
 		fmt.Println("CompletePathPrefix ", classInfo.CompletePathPrefix)
 
-		classInfo.CopyTo(dstClassesDir, p.BuildRootPath)
+		err := classInfo.CopyTo(dstClassesDir, p.BuildRootPath)
+		if err != nil {
+			continue
+		}
 
 		for _, classFile := range classInfo.RelativePathsList {
 			fmt.Println("Copying class file: ", classFile)
@@ -326,8 +338,10 @@ func (p *JacocoPlugin) CopySourcesToWorkspace() error {
 
 	sourcesList := p.GetSourcesList()
 	for _, sourceInfo := range sourcesList {
-		sourceInfo.CopySourceTo(dstSourcesDir, p.BuildRootPath)
-
+		err := sourceInfo.CopySourceTo(dstSourcesDir, p.BuildRootPath)
+		if err != nil {
+			continue
+		}
 	}
 
 	return nil
@@ -393,8 +407,6 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 	}
 
 	p.ClassesInfoStoreList = classesInfoStoreList
-	// p.FinalizedClassesList = MergeIncludeExcludeFilePaths(p.ClassesInfoStoreList)
-
 	p.FinalizedClassesList = MergeIncludeExcludeFileCompletePaths(p.ClassesInfoStoreList)
 
 	if len(p.FinalizedClassesList) < 1 {
@@ -462,6 +474,7 @@ const (
 	ClassFilesListParamKey       = "ClassFilesList"
 	ClassesInfoStoreListParamKey = "ClassesInfoStoreList"
 	FinalizedSourcesListParamKey = "FinalizedSourcesList"
+	WorkSpaceCompletePathKeyStr  = "WorkSpaceCompletePathKeyStr"
 	AllClassesAutoFillGlob       = "**/*.class"
 	AllSourcesAutoFillGlob       = "**/*.java"
 )

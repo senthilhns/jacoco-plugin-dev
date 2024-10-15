@@ -139,7 +139,6 @@ type FilesInfoStore struct {
 	ExcludedPathsListWithPrefix []PathWithPrefix
 
 	CompleteClassPathPrefix string
-	RelativeClassPath       string
 
 	IncludeClassesRelativePathsList []string
 	IncludeClassesCompletePathsList []string
@@ -308,40 +307,6 @@ func (i *IncludeExcludesMerged) GetAllUniqueDirs(toDstPathPrefix string) []strin
 	return uniqDirsList
 }
 
-func MergeIncludeExcludeFilePaths(filesInfoStore []FilesInfoStore) []IncludeExcludesMerged {
-	mergedResults := make(map[string]map[string]struct{})
-
-	for _, fileInfo := range filesInfoStore {
-		if _, exists := mergedResults[fileInfo.CompleteClassPathPrefix]; !exists {
-			mergedResults[fileInfo.CompleteClassPathPrefix] = make(map[string]struct{})
-		}
-		excludeSet := make(map[string]struct{})
-		for _, excludePath := range fileInfo.ExcludeClassesRelativePathsList {
-			excludeSet[excludePath] = struct{}{}
-		}
-
-		for _, includePath := range fileInfo.IncludeClassesRelativePathsList {
-			if _, excluded := excludeSet[includePath]; !excluded {
-				mergedResults[fileInfo.CompleteClassPathPrefix][includePath] = struct{}{}
-			}
-		}
-	}
-
-	var result []IncludeExcludesMerged
-	for prefix, paths := range mergedResults {
-		var relativePaths []string
-		for path := range paths {
-			relativePaths = append(relativePaths, path)
-		}
-		result = append(result, IncludeExcludesMerged{
-			CompletePathPrefix: prefix,
-			RelativePathsList:  relativePaths,
-		})
-	}
-
-	return result
-}
-
 func MergeIncludeExcludeFileCompletePaths(filesInfoStore []FilesInfoStore) []IncludeExcludesMerged {
 
 	validFileList := []string{}
@@ -441,14 +406,8 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 	}
 
 	classInfoStore := FilesInfoStore{
-		CompleteClassPathPrefix:         completePathPrefix,
-		RelativeClassPath:               relativePath,
-		IncludeClassesRelativePathsList: relativeIncludePathsList,
-		IncludeClassesCompletePathsList: includedCompletePathsList,
-		ExcludeClassesRelativePathsList: relativeExcludePathsList,
-		ExcludeClassesCompletePathsList: excludedCompletePathsList,
-		IncludedPathsListWithPrefix:     includedPathsListWithPrefix,
-		ExcludedPathsListWithPrefix:     excludedPathsListWithPrefix,
+		IncludedPathsListWithPrefix: includedPathsListWithPrefix,
+		ExcludedPathsListWithPrefix: excludedPathsListWithPrefix,
 	}
 
 	return classInfoStore, nil
