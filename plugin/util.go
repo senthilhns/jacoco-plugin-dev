@@ -65,30 +65,33 @@ func IsDirExists(dir string) (bool, error) {
 	return info.IsDir(), nil
 }
 
-func GetAllEntriesFromGlobPattern(rootDir, globPatterns string) ([]string, error) {
-	var matches []string
+func GetAllJacocoExecFilesFromGlobPattern(rootDir, globPatterns string) ([]PathWithPrefix, error) {
+
+	var execFilesPathWithPrefixList []PathWithPrefix
+
 	patterns := strings.Split(globPatterns, ",")
 
-	err := filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
+	for _, pattern := range patterns {
+		rootSearchDirFS := os.DirFS(rootDir)
+
+		relPattern := strings.TrimPrefix(pattern, rootDir+"/")
+
+		matchedDirs, err := doublestar.Glob(rootSearchDirFS, relPattern)
 		if err != nil {
-			return err
+			return execFilesPathWithPrefixList, err
 		}
 
-		for _, pattern := range patterns {
-			pattern = strings.TrimSpace(pattern)
-			match, err := doublestar.Match(pattern, path)
-			if err != nil {
-				return err
+		for _, match := range matchedDirs {
+			execFilesPathWithPrefix := PathWithPrefix{
+				CompletePathPrefix: rootDir,
+				RelativePath:       match,
 			}
-			if match {
-				matches = append(matches, path)
-				break
-			}
+			execFilesPathWithPrefixList = append(execFilesPathWithPrefixList, execFilesPathWithPrefix)
 		}
-		return nil
-	})
 
-	return matches, err
+	}
+
+	return execFilesPathWithPrefixList, nil
 }
 
 func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []string,

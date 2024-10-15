@@ -13,8 +13,8 @@ type JacocoPlugin struct {
 }
 
 type JacocoPluginStateStore struct {
-	BuildRootPath     string
-	ExecFilePathsList []string
+	BuildRootPath               string
+	ExecFilePathsWithPrefixList []PathWithPrefix
 
 	ClassesInfoStoreList []FilesInfoStore
 	FinalizedClassesList []IncludeExcludesMerged
@@ -23,6 +23,8 @@ type JacocoPluginStateStore struct {
 	FinalizedSourcesList []IncludeExcludesMerged
 
 	JacocoWorkSpaceDir string
+
+	ExecFilesFinalCompletePath []string
 }
 
 type JacocoPluginParams struct {
@@ -197,7 +199,71 @@ func (p *JacocoPlugin) DoPostArgsValidationSetup(args Args) error {
 		return err
 	}
 
+	err = p.CopyJacocoExecFilesToWorkspace()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in DoPostArgsValidationSetup: "+err.Error())
+		return err
+	}
+
 	return nil
+}
+
+func (p *JacocoPlugin) CopyJacocoExecFilesToWorkspace() error {
+	uniqueDirs, err := p.GetJacocoExecFilesUniqueDirs()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in CopyJacocoExecFilesToWorkspace: "+err.Error())
+		return err
+	}
+
+	execFilesDir := filepath.Join(p.GetWorkspaceDir(), "execFiles")
+	LogPrintln(p, "JacocoPlugin Copying Exec files to workspace: "+execFilesDir)
+	err = CreateDir(execFilesDir)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in CopyJacocoExecFilesToWorkspace: "+err.Error())
+		return GetNewError("Error in CopyJacocoExecFilesToWorkspace: " + err.Error())
+	}
+
+	for _, dir := range uniqueDirs {
+		newDir := filepath.Join(execFilesDir, dir)
+		err = CreateDir(newDir)
+		if err != nil {
+			LogPrintln(p, "JacocoPlugin Error in CopyJacocoExecFilesToWorkspace: "+err.Error())
+			return GetNewError("Error in CopyJacocoExecFilesToWorkspace: " + err.Error())
+		}
+	}
+
+	for _, execFilePathsWithPrefix := range p.ExecFilePathsWithPrefixList {
+		relPath := execFilePathsWithPrefix.RelativePath
+		srcFilePath := filepath.Join(execFilePathsWithPrefix.CompletePathPrefix, execFilePathsWithPrefix.RelativePath)
+		dstFilePath := filepath.Join(execFilesDir, relPath)
+		err = CopyFile(srcFilePath, dstFilePath)
+		if err != nil {
+			LogPrintln(p, "JacocoPlugin Error in CopyJacocoExecFilesToWorkspace: "+err.Error())
+			return GetNewError("Error in CopyJacocoExecFilesToWorkspace: " + err.Error())
+		}
+
+		p.ExecFilesFinalCompletePath = append(p.ExecFilesFinalCompletePath, dstFilePath)
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) GetJacocoExecFilesUniqueDirs() ([]string, error) {
+
+	uniqueDirMap := map[string]bool{}
+
+	for _, execFilePathsWithPrefix := range p.ExecFilePathsWithPrefixList {
+		dir := filepath.Dir(execFilePathsWithPrefix.RelativePath)
+		uniqueDirMap[dir] = true
+	}
+
+	execFilesDirList := []string{}
+
+	for dir, _ := range uniqueDirMap {
+		execFilesDirList = append(execFilesDirList, dir)
+	}
+
+	return execFilesDirList, nil
 }
 
 func (p *JacocoPlugin) CopyClassesToWorkspace() error {
@@ -327,21 +393,22 @@ func (p *JacocoPlugin) IsClassArgOk(args Args) error {
 }
 
 func (p *JacocoPlugin) IsExecFileArgOk(args Args) error {
+
 	LogPrintln(p, "JacocoPlugin BuildAndValidateArgs")
 
 	if args.ExecFilesPathPattern == "" {
 		return GetNewError("Error in IsExecFileArgOk: ExecFilesPathPattern is empty")
 	}
 
-	execFilesPathList, err := GetAllEntriesFromGlobPattern(p.BuildRootPath, args.ExecFilesPathPattern)
+	execFilesPathList, err := GetAllJacocoExecFilesFromGlobPattern(p.BuildRootPath, args.ExecFilesPathPattern)
 	if err != nil {
 		LogPrintln(p, "JacocoPlugin Error in IsExecFileArgOk: "+err.Error())
 		return GetNewError("Error in IsExecFileArgOk: " + err.Error())
 	}
 
-	p.ExecFilePathsList = execFilesPathList
+	p.ExecFilePathsWithPrefixList = execFilesPathList
 
-	if len(p.ExecFilePathsList) < 1 {
+	if len(p.ExecFilePathsWithPrefixList) < 1 {
 		LogPrintln(p, "JacocoPlugin Error in IsExecFileArgOk: No jacoco exec files found")
 		return GetNewError("Error in IsExecFileArgOk: No jacoco exec files found")
 	}
@@ -349,8 +416,8 @@ func (p *JacocoPlugin) IsExecFileArgOk(args Args) error {
 	return nil
 }
 
-func (p *JacocoPlugin) GetExecFilesList() []string {
-	return p.ExecFilePathsList
+func (p *JacocoPlugin) GetExecFilesList() []PathWithPrefix {
+	return p.ExecFilePathsWithPrefixList
 }
 
 func (p *JacocoPlugin) Run() error {
