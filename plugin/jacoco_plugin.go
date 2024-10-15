@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -310,11 +309,6 @@ func (p *JacocoPlugin) CopyClassesToWorkspace() error {
 		if err != nil {
 			continue
 		}
-
-		for _, classFile := range classInfo.RelativePathsList {
-			fmt.Println("Copying class file: ", classFile)
-		}
-
 	}
 
 	return nil

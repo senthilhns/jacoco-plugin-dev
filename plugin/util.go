@@ -137,21 +137,9 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 type FilesInfoStore struct {
 	IncludedPathsListWithPrefix []PathWithPrefix
 	ExcludedPathsListWithPrefix []PathWithPrefix
-
-	CompleteClassPathPrefix string
-
-	IncludeClassesRelativePathsList []string
-	IncludeClassesCompletePathsList []string
-
-	ExcludeClassesRelativePathsList []string
-	ExcludeClassesCompletePathsList []string
 }
 
 type IncludeExcludesMerged struct {
-	CompletePathPrefix string
-	RelativePathsList  []string
-	CompletePathsList  []string
-
 	CompletePathsWithPrefixList []PathWithPrefix
 }
 
@@ -334,8 +322,6 @@ func MergeIncludeExcludeFileCompletePaths(filesInfoStore []FilesInfoStore) []Inc
 
 	var result []IncludeExcludesMerged
 	includeExcludesMerged := IncludeExcludesMerged{
-		CompletePathPrefix:          "",
-		CompletePathsList:           validFileList,
 		CompletePathsWithPrefixList: validFilesListWithPrefix,
 	}
 	result = append(result, includeExcludesMerged)
