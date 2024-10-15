@@ -305,7 +305,6 @@ func (p *JacocoPlugin) CopyClassesToWorkspace() error {
 	}
 
 	for _, classInfo := range classesList {
-		fmt.Println("CompletePathPrefix ", classInfo.CompletePathPrefix)
 
 		err := classInfo.CopyTo(dstClassesDir, p.BuildRootPath)
 		if err != nil {

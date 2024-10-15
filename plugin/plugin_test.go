@@ -143,6 +143,7 @@ func TestClassPathWithNoIncludeNoExclude(t *testing.T) {
 
 }
 
+// rm -rf /opt/hns/test-resources/game-of-life-master/jacoco-workspace--* && BUILD_ROOT_PATH=/opt/hns/test-resources/game-of-life-master go test -count=1 -run ^TestSourcePathWithIncludeAndExclude$
 func TestSourcePathWithIncludeAndExclude(t *testing.T) {
 
 	classPatterns := "/opt/hns/test-resources/game-of-life-master/**/target/classes," + " " +
