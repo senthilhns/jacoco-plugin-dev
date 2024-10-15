@@ -539,6 +539,7 @@ func (p *JacocoPlugin) Run() error {
 		fmt.Println("Command executed successfully.")
 	}
 
+	AnalyzeJacocoXml(p.GetJacocoXmlReportFilePath())
 	return nil
 }
 
@@ -570,8 +571,12 @@ func (p *JacocoPlugin) GetHtmlReportArgs() string {
 
 func (p *JacocoPlugin) GetXmlReportArgs() string {
 	xmlReportArg := "--xml"
-	xmlReportArg = xmlReportArg + " " + p.GetOutputReportsWorkSpaceDir() + "/" + "jacoco.xml" + " "
+	xmlReportArg = xmlReportArg + " " + p.GetJacocoXmlReportFilePath() + " "
 	return xmlReportArg
+}
+
+func (p *JacocoPlugin) GetJacocoXmlReportFilePath() string {
+	return filepath.Join(p.GetOutputReportsWorkSpaceDir(), "jacoco.xml")
 }
 
 func (p *JacocoPlugin) PersistResults() error {
