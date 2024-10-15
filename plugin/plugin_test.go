@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+/*
+https://github.com/syamv/game-of-life
+
+java -jar jacoco.jar \
+    report   ./gameoflife-core/target/jacoco.exec   ./gameoflife-web/target/jacoco.exec   \
+    --classfiles ./gameoflife-core/target/classes   \
+    --sourcefiles ./gameoflife-core/src/main/java   \
+    --html ./gameoflife-core/target/site/jacoco_html   \
+    --xml ./gameoflife-core/target/site/jacoco.xml
+*/
+
 // rm -rf /opt/hns/test-resources/game-of-life-master/jacoco-workspace--* && BUILD_ROOT_PATH=/opt/hns/test-resources/game-of-life-master go test -count=1 -run ^TestSourcePathWithIncludeAndExclude$
 func TestSourcePathWithIncludeAndExclude(t *testing.T) {
 

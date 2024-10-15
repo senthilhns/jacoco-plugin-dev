@@ -1,8 +1,11 @@
 package plugin
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type JacocoPlugin struct {
@@ -25,6 +28,8 @@ type JacocoPluginStateStore struct {
 	JacocoWorkSpaceDir string
 
 	ExecFilesFinalCompletePath []string
+
+	JacocoJarPath string
 }
 
 type JacocoPluginParams struct {
@@ -63,6 +68,27 @@ func (p *JacocoPlugin) Init() error {
 		return err
 	}
 
+	err = p.SetJarPath()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) SetJarPath() error {
+	p.JacocoJarPath = os.Getenv("JACOCO_JAR_PATH")
+	if p.JacocoJarPath == "" {
+		p.JacocoJarPath = DefaultJacocoJarPath
+	}
+
+	_, err := os.Stat(p.JacocoJarPath)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in SetJarPath: "+err.Error())
+		return GetNewError("Error in SetJarPath: " + err.Error())
+	}
+
 	return nil
 }
 
@@ -82,6 +108,12 @@ func (p *JacocoPlugin) CreateNewWorkspace() error {
 	p.JacocoWorkSpaceDir = jacocoWorkSpaceDir
 
 	err = CreateDir(p.JacocoWorkSpaceDir)
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
+		return err
+	}
+
+	err = CreateDir(p.GetOutputReportsWorkSpaceDir())
 	if err != nil {
 		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
 		return err
@@ -222,6 +254,10 @@ func (p *JacocoPlugin) GetExecFilesWorkSpaceDir() string {
 
 func (p *JacocoPlugin) GetClassesWorkSpaceDir() string {
 	return filepath.Join(p.GetWorkspaceDir(), "classes")
+}
+
+func (p *JacocoPlugin) GetOutputReportsWorkSpaceDir() string {
+	return filepath.Join(p.GetWorkspaceDir(), "reports_dir")
 }
 
 func (p *JacocoPlugin) GetSourcesWorkSpaceDir() string {
@@ -437,9 +473,105 @@ func (p *JacocoPlugin) GetExecFilesList() []PathWithPrefix {
 	return p.ExecFilePathsWithPrefixList
 }
 
+/*
+java -jar jacoco.jar \
+    report   ./gameoflife-core/target/jacoco.exec   ./gameoflife-web/target/jacoco.exec   \
+    --classfiles ./gameoflife-core/target/classes   \
+    --sourcefiles ./gameoflife-core/src/main/java   \
+    --html ./gameoflife-core/target/site/jacoco_html   \
+    --xml ./gameoflife-core/target/site/jacoco.xml
+
+
+func main() {
+	// Define the command and its arguments
+	cmd := exec.Command(
+		"java", "-jar", "jacoco.jar",
+		"report",
+		"./gameoflife-core/target/jacoco.exec",
+		"./gameoflife-web/target/jacoco.exec",
+		"--classfiles", "./gameoflife-core/target/classes",
+		"--sourcefiles", "./gameoflife-core/src/main/java",
+		"--html", "./gameoflife-core/target/site/jacoco_html",
+		"--xml", "./gameoflife-core/target/site/jacoco.xml",
+	)
+
+	// Run the command and capture the output
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("Error running command: %v\nOutput: %s", err, output)
+	}
+
+	// Print the output if the command succeeds
+	fmt.Println(string(output))
+}
+
+*/
+
 func (p *JacocoPlugin) Run() error {
 	LogPrintln(p, "JacocoPlugin Run")
+
+	args := []string{}
+
+	args = append(args, "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"+" ")
+	args = append(args, "-jar"+" "+p.JacocoJarPath+" ")
+	args = append(args, p.GetReportArgs()+" ")
+	args = append(args, p.GetClassFilesPathArgs()+" ")
+
+	if p.SkipCopyOfSrcFiles == false {
+		args = append(args, p.GetSourceFilesPathArgs()+" ")
+	}
+
+	args = append(args, p.GetHtmlReportArgs()+" ")
+	args = append(args, p.GetXmlReportArgs()+" ")
+
+	cmdStr := strings.Join(args, " ")
+	parts := strings.Fields(cmdStr)
+
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Run: "+err.Error())
+		return GetNewError("Error in Run: " + err.Error())
+	} else {
+		fmt.Println("Command executed successfully.")
+	}
+
 	return nil
+}
+
+func (p *JacocoPlugin) GetReportArgs() string {
+	reportArg := "report"
+	for _, execFilePath := range p.ExecFilesFinalCompletePath {
+		reportArg = reportArg + " " + execFilePath
+	}
+	return reportArg
+}
+
+func (p *JacocoPlugin) GetClassFilesPathArgs() string {
+	classFilePathArg := "--classfiles"
+	classFilePathArg = classFilePathArg + " " + p.GetClassesWorkSpaceDir()
+	return classFilePathArg
+}
+
+func (p *JacocoPlugin) GetSourceFilesPathArgs() string {
+	sourceFilePathArg := "--sourcefiles"
+	sourceFilePathArg = sourceFilePathArg + " " + p.GetSourcesWorkSpaceDir()
+	return sourceFilePathArg
+}
+
+func (p *JacocoPlugin) GetHtmlReportArgs() string {
+	htmlReportArg := "--html"
+	htmlReportArg = htmlReportArg + " " + p.GetOutputReportsWorkSpaceDir() + "/" + "jacoco_html" + " "
+	return htmlReportArg
+}
+
+func (p *JacocoPlugin) GetXmlReportArgs() string {
+	xmlReportArg := "--xml"
+	xmlReportArg = xmlReportArg + " " + p.GetOutputReportsWorkSpaceDir() + "/" + "jacoco.xml" + " "
+	return xmlReportArg
 }
 
 func (p *JacocoPlugin) PersistResults() error {
@@ -470,6 +602,7 @@ const (
 	WorkSpaceCompletePathKeyStr  = "WorkSpaceCompletePathKeyStr"
 	AllClassesAutoFillGlob       = "**/*.class"
 	AllSourcesAutoFillGlob       = "**/*.java"
+	DefaultJacocoJarPath         = "/opt/harness/plugins-deps/jacoco/0.8.12/jacoco.jar"
 )
 
 //
