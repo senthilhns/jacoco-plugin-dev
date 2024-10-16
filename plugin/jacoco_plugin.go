@@ -28,7 +28,7 @@ type JacocoPluginStateStore struct {
 	JacocoWorkSpaceDir         string
 	ExecFilesFinalCompletePath []string
 	JacocoJarPath              string
-	CoverageThresholds         JacocoCoverageThresholds
+	CoverageThresholds         JacocoCoverageThresholdsValues
 }
 
 type JacocoPluginParams struct {
@@ -50,6 +50,15 @@ type JacocoPluginParams struct {
 	MinimumLineCoverage        float64 `envconfig:"PLUGIN_THRESHOLD_LINE"`
 	MinimumMethodCoverage      float64 `envconfig:"PLUGIN_THRESHOLD_METHOD"`
 	MinimumClassCoverage       float64 `envconfig:"PLUGIN_THRESHOLD_CLASS"`
+}
+
+type JacocoPluginOutputVariables struct {
+	InstructionCoverage string `json:"INSTRUCTION_COVERAGE"`
+	BranchCoverage      string `json:"BRANCH_COVERAGE"`
+	LineCoverage        string `json:"LINE_COVERAGE"`
+	ComplexityCoverage  int    `json:"COMPLEXITY_COVERAGE"`
+	MethodCoverage      string `json:"METHOD_COVERAGE"`
+	ClassCoverage       string `json:"CLASS_COVERAGE"`
 }
 
 func (p *JacocoPlugin) Init() error {
@@ -522,7 +531,40 @@ func (p *JacocoPlugin) AnalyzeJacocoCoverageThresholds() error {
 		return nil
 	}
 
+	if p.IsThresholdValuesGood() == false {
+		LogPrintln(p, "JacocoPlugin Error in AnalyzeJacocoCoverageThresholds: Threshold values not good")
+		return GetNewError("Error in AnalyzeJacocoCoverageThresholds: Threshold values not good")
+	}
+
 	return nil
+}
+
+func (p *JacocoPlugin) IsThresholdValuesGood() bool {
+
+	type ThresholdsCompare struct {
+		ObservedValue float64
+		ExpectedValue float64
+	}
+
+	thresholdsCompareList := []ThresholdsCompare{
+		{ObservedValue: p.CoverageThresholds.InstructionCoverageThreshold, ExpectedValue: p.MinimumInstructionCoverage},
+		{ObservedValue: p.CoverageThresholds.BranchCoverageThreshold, ExpectedValue: p.MinimumBranchCoverage},
+		{ObservedValue: p.CoverageThresholds.LineCoverageThreshold, ExpectedValue: p.MinimumLineCoverage},
+		{ObservedValue: p.CoverageThresholds.MethodCoverageThreshold, ExpectedValue: p.MinimumMethodCoverage},
+		{ObservedValue: p.CoverageThresholds.ClassCoverageThreshold, ExpectedValue: p.MinimumClassCoverage},
+	}
+
+	for _, thresholdCompare := range thresholdsCompareList {
+		if thresholdCompare.ObservedValue <= thresholdCompare.ExpectedValue {
+			return false
+		}
+	}
+
+	if p.CoverageThresholds.ComplexityCoverageThreshold > p.MinimumComplexityCoverage {
+		return false
+	}
+
+	return true
 }
 
 func (p *JacocoPlugin) GenerateJacocoReports() error {
@@ -605,11 +647,33 @@ func (p *JacocoPlugin) PersistResults() error {
 }
 
 func (p *JacocoPlugin) WriteOutputVariables() error {
-	LogPrintln(p, "JacocoPlugin WriteOutputVariables")
-	return nil
-}
+	LogPrintln(p, "JacocoPlugin WriteOutputVariables to ", GetOutputVariablesStorageFilePath())
 
-// Attr methods follow
+	type EnvKvPair struct {
+		Key   string
+		Value interface{}
+	}
+
+	var kvPairs = []EnvKvPair{
+		{Key: "INSTRUCTION_COVERAGE", Value: p.CoverageThresholds.InstructionCoverageThreshold},
+		{Key: "BRANCH_COVERAGE", Value: p.CoverageThresholds.BranchCoverageThreshold},
+		{Key: "LINE_COVERAGE", Value: p.CoverageThresholds.LineCoverageThreshold},
+		{Key: "COMPLEXITY_COVERAGE", Value: p.CoverageThresholds.ComplexityCoverageThreshold},
+		{Key: "METHOD_COVERAGE", Value: p.CoverageThresholds.MethodCoverageThreshold},
+		{Key: "CLASS_COVERAGE", Value: p.CoverageThresholds.ClassCoverageThreshold},
+	}
+
+	var retErr error = nil
+
+	for _, kvPair := range kvPairs {
+		err := WriteEnvVariableAsString(kvPair.Key, kvPair.Value)
+		if err != nil {
+			retErr = err
+		}
+	}
+
+	return retErr
+}
 
 func (p *JacocoPlugin) IsQuiet() bool {
 	return false

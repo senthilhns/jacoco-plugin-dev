@@ -34,6 +34,35 @@ type JacocoCoverageThresholds struct {
 	ClassCoverageThreshold       string
 }
 
+type JacocoCoverageThresholdsValues struct {
+	InstructionCoverageThreshold float64
+	BranchCoverageThreshold      float64
+	LineCoverageThreshold        float64
+	ComplexityCoverageThreshold  int
+	MethodCoverageThreshold      float64
+	ClassCoverageThreshold       float64
+}
+
+func (j *JacocoCoverageThresholds) ToFloat64() JacocoCoverageThresholdsValues {
+	return JacocoCoverageThresholdsValues{
+		InstructionCoverageThreshold: ParsePercentage(j.InstructionCoverageThreshold),
+		BranchCoverageThreshold:      ParsePercentage(j.BranchCoverageThreshold),
+		LineCoverageThreshold:        ParsePercentage(j.LineCoverageThreshold),
+		ComplexityCoverageThreshold:  j.ComplexityCoverageThreshold,
+		MethodCoverageThreshold:      ParsePercentage(j.MethodCoverageThreshold),
+		ClassCoverageThreshold:       ParsePercentage(j.ClassCoverageThreshold),
+	}
+}
+
+func ParsePercentage(percentage string) float64 {
+	var value float64
+	_, err := fmt.Sscanf(percentage, "%f", &value)
+	if err != nil {
+		log.Fatalf("Error parsing percentage: %v", err)
+	}
+	return value
+}
+
 func CalculatePercentage(covered, missed int) string {
 	total := covered + missed
 	if total == 0 {
@@ -91,7 +120,7 @@ func ParseXMLReport(filename string) Report {
 	return report
 }
 
-func GetJacocoCoverageThresholds(completeXmlPath string) JacocoCoverageThresholds {
+func GetJacocoCoverageThresholds(completeXmlPath string) JacocoCoverageThresholdsValues {
 	report := ParseXMLReport(completeXmlPath)
 	coverageThresholds := CalculateCoverageMetrics(report)
 
@@ -103,5 +132,7 @@ func GetJacocoCoverageThresholds(completeXmlPath string) JacocoCoverageThreshold
 	fmt.Printf("Method Coverage: %s\n", coverageThresholds.MethodCoverageThreshold)
 	fmt.Printf("Class Coverage: %s\n", coverageThresholds.ClassCoverageThreshold)
 
-	return coverageThresholds
+	coverageThresholdValues := coverageThresholds.ToFloat64()
+
+	return coverageThresholdValues
 }

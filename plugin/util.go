@@ -464,6 +464,18 @@ func GetRandomDir(absolutePrefixPath, workspacePrefixStr string) (string, error)
 	return GetRandomDir(absolutePrefixPath, workspacePrefixStr)
 }
 
+func GetRandomTmpFileName(absolutePrefixPath, workspacePrefixStr string) (string, error) {
+	randomStr, err := generateRandomString(8)
+	if err != nil {
+		return "", err
+	}
+
+	fileName := fmt.Sprintf("%s-%s", workspacePrefixStr, randomStr)
+	completePath := filepath.Join(absolutePrefixPath, fileName)
+
+	return completePath, nil
+}
+
 func GetRandomJacocoWorkspaceDir(absolutePrefixPath string) (string, error) {
 	return GetRandomDir(absolutePrefixPath, "jacoco-workspace-")
 }
@@ -486,6 +498,35 @@ func CreateDir(absolutePath string) error {
 		return fmt.Errorf("failed to create directory %s: %w", absolutePath, err)
 	}
 	return nil
+}
+
+func GetOutputVariablesStorageFilePath() string {
+	if IsDevTestingMode() {
+		return filepath.Join("/tmp", "drone-output")
+	}
+	return os.Getenv("DRONE_OUTPUT")
+}
+
+func WriteEnvVariableAsString(key string, value interface{}) error {
+
+	outputFile, err := os.OpenFile(GetOutputVariablesStorageFilePath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open output file: %w", err)
+	}
+	defer outputFile.Close()
+
+	valueStr := fmt.Sprintf("%v", value)
+
+	_, err = fmt.Fprintf(outputFile, "%s=%s\n", key, valueStr)
+	if err != nil {
+		return fmt.Errorf("failed to write to env: %w", err)
+	}
+
+	return nil
+}
+
+func IsDevTestingMode() bool {
+	return os.Getenv("DEV_TEST_d6c9b463090c") == "true"
 }
 
 //
