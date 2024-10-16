@@ -485,9 +485,51 @@ java -jar jacoco.jar \
 func (p *JacocoPlugin) Run() error {
 	LogPrintln(p, "JacocoPlugin Run")
 
+	err := p.GenerateJacocoReports()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Run: "+err.Error())
+		return err
+	}
+
+	err = p.AnalyzeJacocoCoverageThresholds()
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in Run: "+err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) AnalyzeJacocoCoverageThresholds() error {
+
+	if p.PluginFailIfNoReports {
+		_, err := os.Stat(p.GetJacocoXmlReportFilePath())
+		if err != nil {
+			LogPrintln(p, "JacocoPlugin Error in AnalyzeJacocoCoverageThresholds: "+err.Error())
+			return GetNewError("Error in AnalyzeJacocoCoverageThresholds: " + err.Error())
+		}
+		_, err = os.Stat(p.GetJacocoHtmlReportFilePath())
+		if err != nil {
+			LogPrintln(p, "JacocoPlugin Error in AnalyzeJacocoCoverageThresholds: "+err.Error())
+			return GetNewError("Error in AnalyzeJacocoCoverageThresholds: " + err.Error())
+		}
+	}
+
+	p.CoverageThresholds = GetJacocoCoverageThresholds(p.GetJacocoXmlReportFilePath())
+
+	if p.PluginFailOnThreshold == false {
+		LogPrintln(p, "JacocoPlugin PluginFailOnThreshold is false, so skipping threshold check")
+		return nil
+	}
+
+	return nil
+}
+
+func (p *JacocoPlugin) GenerateJacocoReports() error {
+
 	args := []string{}
 
-	args = append(args, "/usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java"+" ")
+	args = append(args, "java"+" ")
 	args = append(args, "-jar"+" "+p.JacocoJarPath+" ")
 	args = append(args, p.GetReportArgs()+" ")
 	args = append(args, p.GetClassFilesPathArgs()+" ")
@@ -514,7 +556,6 @@ func (p *JacocoPlugin) Run() error {
 		fmt.Println("Command executed successfully.")
 	}
 
-	GetJacocoCoverageThresholds(p.GetJacocoXmlReportFilePath())
 	return nil
 }
 
@@ -552,6 +593,10 @@ func (p *JacocoPlugin) GetXmlReportArgs() string {
 
 func (p *JacocoPlugin) GetJacocoXmlReportFilePath() string {
 	return filepath.Join(p.GetOutputReportsWorkSpaceDir(), "jacoco.xml")
+}
+
+func (p *JacocoPlugin) GetJacocoHtmlReportFilePath() string {
+	return filepath.Join(p.GetOutputReportsWorkSpaceDir(), "jacoco.html")
 }
 
 func (p *JacocoPlugin) PersistResults() error {

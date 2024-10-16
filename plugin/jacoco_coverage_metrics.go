@@ -91,15 +91,17 @@ func ParseXMLReport(filename string) Report {
 	return report
 }
 
-func GetJacocoCoverageThresholds(completeXmlPath string) {
+func GetJacocoCoverageThresholds(completeXmlPath string) JacocoCoverageThresholds {
 	report := ParseXMLReport(completeXmlPath)
-	coverageMetrics := CalculateCoverageMetrics(report)
+	coverageThresholds := CalculateCoverageMetrics(report)
 
 	fmt.Println("Coverage Metrics:")
-	fmt.Printf("Instruction Coverage: %s\n", coverageMetrics.InstructionCoverageThreshold)
-	fmt.Printf("Branch Coverage: %s\n", coverageMetrics.BranchCoverageThreshold)
-	fmt.Printf("Line Coverage: %s\n", coverageMetrics.LineCoverageThreshold)
-	fmt.Printf("Complexity Coverage: %d\n", coverageMetrics.ComplexityCoverageThreshold)
-	fmt.Printf("Method Coverage: %s\n", coverageMetrics.MethodCoverageThreshold)
-	fmt.Printf("Class Coverage: %s\n", coverageMetrics.ClassCoverageThreshold)
+	fmt.Printf("Instruction Coverage: %s\n", coverageThresholds.InstructionCoverageThreshold)
+	fmt.Printf("Branch Coverage: %s\n", coverageThresholds.BranchCoverageThreshold)
+	fmt.Printf("Line Coverage: %s\n", coverageThresholds.LineCoverageThreshold)
+	fmt.Printf("Complexity Coverage: %d\n", coverageThresholds.ComplexityCoverageThreshold)
+	fmt.Printf("Method Coverage: %s\n", coverageThresholds.MethodCoverageThreshold)
+	fmt.Printf("Class Coverage: %s\n", coverageThresholds.ClassCoverageThreshold)
+
+	return coverageThresholds
 }
