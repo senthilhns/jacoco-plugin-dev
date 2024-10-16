@@ -275,7 +275,7 @@ func (p *JacocoPlugin) GetClassesWorkSpaceDir() string {
 }
 
 func (p *JacocoPlugin) GetOutputReportsWorkSpaceDir() string {
-	return filepath.Join(p.GetWorkspaceDir(), "reports_dir")
+	return filepath.Join(p.GetWorkspaceDir(), "jacoco_reports_dir")
 }
 
 func (p *JacocoPlugin) GetSourcesWorkSpaceDir() string {

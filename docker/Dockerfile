@@ -1,5 +1,5 @@
 
-FROM eclipse-temurin:21-jre-alpine AS alpine
+FROM eclipse-temurin:8-jre-alpine AS alpine
 
 RUN apk add -U --no-cache ca-certificates curl
 
