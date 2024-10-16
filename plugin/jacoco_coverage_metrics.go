@@ -124,13 +124,13 @@ func GetJacocoCoverageThresholds(completeXmlPath string) JacocoCoverageThreshold
 	report := ParseXMLReport(completeXmlPath)
 	coverageThresholds := CalculateCoverageMetrics(report)
 
-	fmt.Println("Coverage Metrics:")
-	fmt.Printf("Instruction Coverage: %s\n", coverageThresholds.InstructionCoverageThreshold)
-	fmt.Printf("Branch Coverage: %s\n", coverageThresholds.BranchCoverageThreshold)
-	fmt.Printf("Line Coverage: %s\n", coverageThresholds.LineCoverageThreshold)
-	fmt.Printf("Complexity Coverage: %d\n", coverageThresholds.ComplexityCoverageThreshold)
-	fmt.Printf("Method Coverage: %s\n", coverageThresholds.MethodCoverageThreshold)
-	fmt.Printf("Class Coverage: %s\n", coverageThresholds.ClassCoverageThreshold)
+	LogPrintf(nil, "Coverage Metrics:")
+	LogPrintf(nil, "Instruction Coverage: %s\n", coverageThresholds.InstructionCoverageThreshold)
+	LogPrintf(nil, "Branch Coverage: %s\n", coverageThresholds.BranchCoverageThreshold)
+	LogPrintf(nil, "Line Coverage: %s\n", coverageThresholds.LineCoverageThreshold)
+	LogPrintf(nil, "Complexity Coverage: %d\n", coverageThresholds.ComplexityCoverageThreshold)
+	LogPrintf(nil, "Method Coverage: %s\n", coverageThresholds.MethodCoverageThreshold)
+	LogPrintf(nil, "Class Coverage: %s\n", coverageThresholds.ClassCoverageThreshold)
 
 	coverageThresholdValues := coverageThresholds.ToFloat64()
 

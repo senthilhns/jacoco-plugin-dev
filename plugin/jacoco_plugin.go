@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -617,7 +616,7 @@ func (p *JacocoPlugin) GenerateJacocoReports() error {
 		LogPrintln(p, "JacocoPlugin Error in Run: "+err.Error())
 		return GetNewError("Error in Run: " + err.Error())
 	} else {
-		fmt.Println("Command executed successfully.")
+		LogPrintln(p, "Command executed successfully.")
 	}
 
 	return nil

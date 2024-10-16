@@ -58,6 +58,15 @@ func LogPrintln(p Plugin, args ...interface{}) {
 	log.Println(append([]interface{}{"Plugin Info:"}, args...)...)
 }
 
+func LogPrintf(p Plugin, format string, v ...interface{}) {
+	if p != nil {
+		if p.IsQuiet() {
+			return
+		}
+	}
+	log.Printf(format, v...)
+}
+
 func IsDirExists(dir string) (bool, error) {
 	info, err := os.Stat(dir)
 	if os.IsNotExist(err) {
@@ -124,7 +133,7 @@ func FilterFileOrDirUsingGlobPatterns(rootSearchDir string, dirsGlobList []strin
 			filesInfoStore, err := WalkDir2(completePath, relativePath, rootSearchDir+"/",
 				includeGlobPatternStrList, excludeGlobPatternStrList)
 			if err != nil {
-				fmt.Println("Error in WalkDir: ", err.Error())
+				LogPrintln(nil, "Error in WalkDir: ", err.Error())
 				return filesStoreList, err
 			}
 			filesStoreList = append(filesStoreList, filesInfoStore)
@@ -161,7 +170,7 @@ func (i *IncludeExcludesMerged) CopyTo(toDstPathPrefix, buildRootPath string) er
 
 		err := CopyFile(srcPath, dstPath)
 		if err != nil {
-			fmt.Println("** Error **:  in copying file: ", err.Error())
+			LogPrintln(nil, "** Error **:  in copying file: ", err.Error())
 		}
 	}
 
@@ -186,7 +195,7 @@ func (i *IncludeExcludesMerged) CopySourceTo(toDstPathPrefix, buildRootPath stri
 
 		pos := strings.Index(srcPath, buildRootPath)
 		if pos == -1 {
-			fmt.Println("Target not found in the path")
+			LogPrintln(nil, "Target not found in the path")
 			continue
 		}
 
@@ -197,7 +206,7 @@ func (i *IncludeExcludesMerged) CopySourceTo(toDstPathPrefix, buildRootPath stri
 
 			err := CopyFile(srcPath, dstFile)
 			if err != nil {
-				fmt.Println("Error in copying file: ", err.Error())
+				LogPrintln(nil, "Error in copying file: ", err.Error())
 				continue
 			}
 		}
@@ -217,7 +226,7 @@ func (i *IncludeExcludesMerged) GetAllUniqueDirsForSource(toDstPathPrefix, build
 		srcPath := filepath.Join(prefix, relPath)
 		pos := strings.Index(srcPath, buildRootPath)
 		if pos == -1 {
-			fmt.Println("Target not found in the path")
+			LogPrintln(nil, "Target not found in the path")
 			continue
 		}
 
@@ -353,7 +362,7 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 		matchedFiles, err := doublestar.Glob(rootSearchDirFS, relPattern)
 
 		if err != nil {
-			fmt.Println("Error in doublestar.Glob: ", err.Error())
+			LogPrintln(nil, "Error in doublestar.Glob: ", err.Error())
 			return FilesInfoStore{}, err
 		}
 
@@ -376,7 +385,7 @@ func WalkDir2(completePath, relativePath, completePathPrefix string,
 		matchedFiles, err := doublestar.Glob(rootSearchDirFS, relPattern)
 
 		if err != nil {
-			fmt.Println("Error in doublestar.Glob: ", err.Error())
+			LogPrintln(nil, "Error in doublestar.Glob: ", err.Error())
 		}
 
 		for _, matchedFile := range matchedFiles {
