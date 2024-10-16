@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -429,6 +430,16 @@ func IsMapHasAllStrings(m map[string]interface{}, strList []string) bool {
 	return true
 }
 
+func ToJsonStringFromStruct[T any](v T) (string, error) {
+	jsonBytes, err := json.Marshal(v)
+
+	if err == nil {
+		return string(jsonBytes), nil
+	}
+
+	return "", err
+}
+
 func ToJsonStringFromMap[T any](m T) (string, error) {
 	outBytes, err := json.Marshal(m)
 	if err == nil {
@@ -527,6 +538,28 @@ func WriteEnvVariableAsString(key string, value interface{}) error {
 
 func IsDevTestingMode() bool {
 	return os.Getenv("DEV_TEST_d6c9b463090c") == "true"
+}
+
+func StructToJSONWithEnvKeys(v interface{}) (string, error) {
+	val := reflect.ValueOf(v)
+	typ := reflect.TypeOf(v)
+
+	data := make(map[string]interface{})
+
+	for i := 0; i < val.NumField(); i++ {
+		field := typ.Field(i)
+		key := field.Tag.Get("envconfig")
+		if key != "" {
+			data[key] = val.Field(i).Interface()
+		}
+	}
+
+	jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonData), nil
 }
 
 //

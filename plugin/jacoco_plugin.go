@@ -61,7 +61,8 @@ type JacocoPluginOutputVariables struct {
 	ClassCoverage       string `json:"CLASS_COVERAGE"`
 }
 
-func (p *JacocoPlugin) Init() error {
+func (p *JacocoPlugin) Init(args Args) error {
+
 	LogPrintln(p, "JacocoPlugin Init")
 
 	err := p.SetBuildRoot("")
@@ -81,6 +82,16 @@ func (p *JacocoPlugin) Init() error {
 		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
 		return err
 	}
+
+	p.SkipCopyOfSrcFiles = args.SkipCopyOfSrcFiles
+	p.PluginFailOnThreshold = args.PluginFailOnThreshold
+	p.PluginFailIfNoReports = args.PluginFailIfNoReports
+
+	p.MinimumInstructionCoverage = args.MinimumInstructionCoverage
+	p.MinimumBranchCoverage = args.MinimumBranchCoverage
+	p.MinimumComplexityCoverage = args.MinimumComplexityCoverage
+	p.MinimumLineCoverage = args.MinimumLineCoverage
+	p.MinimumMethodCoverage = args.MinimumMethodCoverage
 
 	return nil
 }
@@ -544,23 +555,34 @@ func (p *JacocoPlugin) IsThresholdValuesGood() bool {
 	type ThresholdsCompare struct {
 		ObservedValue float64
 		ExpectedValue float64
+		ThresholdType string
 	}
 
 	thresholdsCompareList := []ThresholdsCompare{
-		{ObservedValue: p.CoverageThresholds.InstructionCoverageThreshold, ExpectedValue: p.MinimumInstructionCoverage},
-		{ObservedValue: p.CoverageThresholds.BranchCoverageThreshold, ExpectedValue: p.MinimumBranchCoverage},
-		{ObservedValue: p.CoverageThresholds.LineCoverageThreshold, ExpectedValue: p.MinimumLineCoverage},
-		{ObservedValue: p.CoverageThresholds.MethodCoverageThreshold, ExpectedValue: p.MinimumMethodCoverage},
-		{ObservedValue: p.CoverageThresholds.ClassCoverageThreshold, ExpectedValue: p.MinimumClassCoverage},
+		{ObservedValue: p.CoverageThresholds.InstructionCoverageThreshold,
+			ExpectedValue: p.MinimumInstructionCoverage, ThresholdType: "InstructionCoverage"},
+		{ObservedValue: p.CoverageThresholds.BranchCoverageThreshold,
+			ExpectedValue: p.MinimumBranchCoverage, ThresholdType: "BranchCoverage"},
+		{ObservedValue: p.CoverageThresholds.LineCoverageThreshold,
+			ExpectedValue: p.MinimumLineCoverage, ThresholdType: "LineCoverage"},
+		{ObservedValue: p.CoverageThresholds.MethodCoverageThreshold,
+			ExpectedValue: p.MinimumMethodCoverage, ThresholdType: "MethodCoverage"},
+		{ObservedValue: p.CoverageThresholds.ClassCoverageThreshold,
+			ExpectedValue: p.MinimumClassCoverage, ThresholdType: "ClassCoverage"},
 	}
 
 	for _, thresholdCompare := range thresholdsCompareList {
 		if thresholdCompare.ObservedValue <= thresholdCompare.ExpectedValue {
+			LogPrintln(p, "JacocoPlugin "+thresholdCompare.ThresholdType+" threshold not met",
+				" expected = ", thresholdCompare.ExpectedValue, " observed = ", thresholdCompare.ObservedValue)
+
 			return false
 		}
 	}
 
 	if p.CoverageThresholds.ComplexityCoverageThreshold > p.MinimumComplexityCoverage {
+		LogPrintln(p, "JacocoPlugin ComplexityCoverage threshold not met", " expected = ", p.MinimumComplexityCoverage,
+			" observed = ", p.CoverageThresholds.ComplexityCoverageThreshold)
 		return false
 	}
 

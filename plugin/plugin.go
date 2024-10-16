@@ -9,7 +9,7 @@ import (
 )
 
 type Plugin interface {
-	Init() error
+	Init(args Args) error
 	SetBuildRoot(buildRootPath string) error
 	DeInit() error
 	ValidateAndProcessArgs(args Args) error
@@ -58,6 +58,15 @@ type EnvPluginInputArgs struct {
 	SourcePattern          string `envconfig:"PLUGIN_SOURCE_DIRECTORIES"`
 	SourceInclusionPattern string `envconfig:"PLUGIN_SOURCE_INCLUSION_PATTERN"`
 	SourceExclusionPattern string `envconfig:"PLUGIN_SOURCE_EXCLUSION_PATTERN"`
+
+	SkipCopyOfSrcFiles bool `envconfig:"PLUGIN_SKIP_SOURCE_COPY"`
+
+	MinimumInstructionCoverage float64 `envconfig:"PLUGIN_THRESHOLD_INSTRUCTION"`
+	MinimumBranchCoverage      float64 `envconfig:"PLUGIN_THRESHOLD_BRANCH"`
+	MinimumComplexityCoverage  int     `envconfig:"PLUGIN_THRESHOLD_COMPLEXITY"`
+	MinimumLineCoverage        float64 `envconfig:"PLUGIN_THRESHOLD_LINE"`
+	MinimumMethodCoverage      float64 `envconfig:"PLUGIN_THRESHOLD_METHOD"`
+	MinimumClassCoverage       float64 `envconfig:"PLUGIN_THRESHOLD_CLASS"`
 }
 
 func Exec(ctx context.Context, args Args) (Plugin, error) {
@@ -67,7 +76,7 @@ func Exec(ctx context.Context, args Args) (Plugin, error) {
 		return plugin, err
 	}
 
-	err = plugin.Init()
+	err = plugin.Init(args)
 	if err != nil {
 		return plugin, err
 	}

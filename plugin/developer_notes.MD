@@ -58,3 +58,33 @@ java -jar jacoco.jar \
 rm -rvf /opt/hns/test-resources/game-of-life-master/jacoco-workspace--* && \
 BUILD_ROOT_PATH=/opt/hns/test-resources/game-of-life-master go test -count=1 -run ^TestSourcePathWithIncludeAndExclude$
 ```
+
+# Complete Env vars for testing example
+```bash
+
+go build && \
+\
+rm -rf /opt/hns/test-resources/game-of-life-master/jacoco-workspace--* &&
+rm /tmp/drone-output  || \
+\
+PLUGIN_TOOL='jacoco' \
+PLUGIN_REPORTS_PATH_PATTERN='**/target/jacoco.exec' \
+PLUGIN_FAIL_ON_THRESHOLD='true' \
+PLUGIN_FAIL_IF_NO_REPORTS='false' \
+PLUGIN_CLASS_DIRECTORIES='**/target/classes, **/WEB-INF/classes' \
+PLUGIN_CLASS_INCLUSION_PATTERN='**/*.class, **/*.xml' \
+PLUGIN_CLASS_EXCLUSION_PATTERN='**/controllers/*.class' \
+PLUGIN_SOURCE_DIRECTORIES='**/src/main/java' \
+PLUGIN_SOURCE_INCLUSION_PATTERN='**/*.java, *.groovy' \
+PLUGIN_SOURCE_EXCLUSION_PATTERN='**/controllers/*.java' \
+PLUGIN_SKIP_SOURCE_COPY='false' \
+PLUGIN_THRESHOLD_INSTRUCTION='0' \
+PLUGIN_THRESHOLD_BRANCH='0' \
+PLUGIN_THRESHOLD_COMPLEXITY='80' \
+PLUGIN_THRESHOLD_LINE='0' \
+PLUGIN_THRESHOLD_METHOD='0' \
+PLUGIN_THRESHOLD_CLASS='0' \
+BUILD_ROOT_PATH='/opt/hns/test-resources/game-of-life-master' \
+./drone-coverage-report
+
+```
