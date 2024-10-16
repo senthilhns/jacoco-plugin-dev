@@ -25,11 +25,10 @@ type JacocoPluginStateStore struct {
 	SourcesInfoStoreList []FilesInfoStore
 	FinalizedSourcesList []IncludeExcludesMerged
 
-	JacocoWorkSpaceDir string
-
+	JacocoWorkSpaceDir         string
 	ExecFilesFinalCompletePath []string
-
-	JacocoJarPath string
+	JacocoJarPath              string
+	CoverageThresholds         JacocoCoverageThresholds
 }
 
 type JacocoPluginParams struct {
@@ -474,37 +473,13 @@ func (p *JacocoPlugin) GetExecFilesList() []PathWithPrefix {
 }
 
 /*
+Usage example:
 java -jar jacoco.jar \
     report   ./gameoflife-core/target/jacoco.exec   ./gameoflife-web/target/jacoco.exec   \
     --classfiles ./gameoflife-core/target/classes   \
     --sourcefiles ./gameoflife-core/src/main/java   \
     --html ./gameoflife-core/target/site/jacoco_html   \
     --xml ./gameoflife-core/target/site/jacoco.xml
-
-
-func main() {
-	// Define the command and its arguments
-	cmd := exec.Command(
-		"java", "-jar", "jacoco.jar",
-		"report",
-		"./gameoflife-core/target/jacoco.exec",
-		"./gameoflife-web/target/jacoco.exec",
-		"--classfiles", "./gameoflife-core/target/classes",
-		"--sourcefiles", "./gameoflife-core/src/main/java",
-		"--html", "./gameoflife-core/target/site/jacoco_html",
-		"--xml", "./gameoflife-core/target/site/jacoco.xml",
-	)
-
-	// Run the command and capture the output
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("Error running command: %v\nOutput: %s", err, output)
-	}
-
-	// Print the output if the command succeeds
-	fmt.Println(string(output))
-}
-
 */
 
 func (p *JacocoPlugin) Run() error {
@@ -539,7 +514,7 @@ func (p *JacocoPlugin) Run() error {
 		fmt.Println("Command executed successfully.")
 	}
 
-	AnalyzeJacocoXml(p.GetJacocoXmlReportFilePath())
+	GetJacocoCoverageThresholds(p.GetJacocoXmlReportFilePath())
 	return nil
 }
 
