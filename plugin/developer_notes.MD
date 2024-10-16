@@ -56,7 +56,7 @@ java -jar jacoco.jar \
 
 ```bash
 rm -rvf /opt/hns/test-resources/game-of-life-master/jacoco-workspace--* && \
-BUILD_ROOT_PATH=/opt/hns/test-resources/game-of-life-master go test -count=1 -run ^TestSourcePathWithIncludeAndExclude$
+DRONE_WORKSPACE=/opt/hns/test-resources/game-of-life-master go test -count=1 -run ^TestSourcePathWithIncludeAndExclude$
 ```
 
 # Complete Env vars for testing example
@@ -84,7 +84,7 @@ PLUGIN_THRESHOLD_COMPLEXITY='80' \
 PLUGIN_THRESHOLD_LINE='0' \
 PLUGIN_THRESHOLD_METHOD='0' \
 PLUGIN_THRESHOLD_CLASS='0' \
-BUILD_ROOT_PATH='/opt/hns/test-resources/game-of-life-master' \
+DRONE_WORKSPACE='/opt/hns/test-resources/game-of-life-master' \
 ./drone-coverage-report
 
 ```

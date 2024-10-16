@@ -706,7 +706,7 @@ func (p *JacocoPlugin) GetPluginType() string {
 }
 
 const (
-	BuildRootPathKeyStr          = "BUILD_ROOT_PATH"
+	BuildRootPathKeyStr          = "DRONE_WORKSPACE"
 	ClassFilesListParamKey       = "ClassFilesList"
 	ClassesInfoStoreListParamKey = "ClassesInfoStoreList"
 	FinalizedSourcesListParamKey = "FinalizedSourcesList"
