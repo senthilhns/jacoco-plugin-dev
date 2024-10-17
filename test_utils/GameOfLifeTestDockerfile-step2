@@ -1,0 +1,15 @@
+# Base image with a lightweight OS (alpine)
+FROM alpine:latest
+
+# Install required dependencies: Git, Bash, Curl (JVM and Maven will be installed by the shell script)
+RUN apk update && \
+    apk add --no-cache git bash curl openjdk8
+
+# Copy the run2.sh script to serve as entry point
+COPY run2.sh /usr/local/bin/run2.sh
+
+# Make run2.sh executable
+RUN chmod +x /usr/local/bin/run2.sh
+
+# Set run2.sh as the entry point for the container
+ENTRYPOINT ["/usr/local/bin/run2.sh"]

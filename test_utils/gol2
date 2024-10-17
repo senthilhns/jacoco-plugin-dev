@@ -1,0 +1,33 @@
+# Base image with a lightweight OS (alpine)
+FROM alpine:latest
+
+# Install required dependencies: Git, Bash, Curl (JVM and Maven will be installed by the shell script)
+RUN apk update && \
+    apk add --no-cache git bash curl openjdk8
+
+# Accept DWPJA2 as a build argument
+ARG DWPJA2
+
+# Set DWPJA2 as an environment variable for future container runs
+ENV DWPJA2=${DWPJA2}
+
+# Create the workspace directory
+RUN mkdir -p $DWPJA2
+
+# Copy the shell script that installs JVM and runs the maven tests
+COPY create_game_of_life_jacoco_test_reports.sh /usr/local/bin/create_game_of_life_jacoco_test_reports.sh
+
+# Make the script executable
+RUN chmod +x /usr/local/bin/create_game_of_life_jacoco_test_reports.sh
+
+# Run the installation script during the image build
+RUN /usr/local/bin/create_game_of_life_jacoco_test_reports.sh
+
+# Copy the run_first.sh script to serve as entry point
+COPY run_first.sh /usr/local/bin/run_first.sh
+
+# Make run_first.sh executable
+RUN chmod +x /usr/local/bin/run_first.sh
+
+# Set run_first.sh as the entry point for the container
+ENTRYPOINT ["/usr/local/bin/run_first.sh"]

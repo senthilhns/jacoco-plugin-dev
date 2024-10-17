@@ -527,6 +527,14 @@ func GetOutputVariablesStorageFilePath() string {
 	return os.Getenv("DRONE_OUTPUT")
 }
 
+func ReadFileAsString(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 func WriteEnvVariableAsString(key string, value interface{}) error {
 
 	outputFile, err := os.OpenFile(GetOutputVariablesStorageFilePath(), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -570,6 +578,10 @@ func StructToJSONWithEnvKeys(v interface{}) (string, error) {
 
 	return string(jsonData), nil
 }
+
+const (
+	DefaultWorkSpaceDirEnvVarKey = "DRONE_WORKSPACE"
+)
 
 //
 //

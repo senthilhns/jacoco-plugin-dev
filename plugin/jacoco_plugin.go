@@ -112,17 +112,12 @@ func (p *JacocoPlugin) SetJarPath() error {
 
 func (p *JacocoPlugin) CreateNewWorkspace() error {
 
-	buildRootPath, err := p.GetBuildRootPath()
+	jacocoWorkSpaceDir, err := p.GetBuildRootPath()
 	if err != nil {
 		LogPrintln(p, "JacocoPlugin Error in CopyClassesToWorkspace: "+err.Error())
 		return GetNewError("Error in CopyClassesToWorkspace: " + err.Error())
 	}
 
-	jacocoWorkSpaceDir, err := GetRandomJacocoWorkspaceDir(buildRootPath)
-	if err != nil {
-		LogPrintln(p, "JacocoPlugin Error in Init: "+err.Error())
-		return err
-	}
 	p.JacocoWorkSpaceDir = jacocoWorkSpaceDir
 
 	err = CreateDir(p.JacocoWorkSpaceDir)
@@ -141,6 +136,7 @@ func (p *JacocoPlugin) CreateNewWorkspace() error {
 }
 
 func (p *JacocoPlugin) GetWorkspaceDir() string {
+	p.JacocoWorkSpaceDir = os.Getenv(DefaultWorkSpaceDirEnvVarKey)
 	return p.JacocoWorkSpaceDir
 }
 
@@ -275,7 +271,7 @@ func (p *JacocoPlugin) GetClassesWorkSpaceDir() string {
 }
 
 func (p *JacocoPlugin) GetOutputReportsWorkSpaceDir() string {
-	return filepath.Join(p.GetWorkspaceDir(), "jacoco_reports_dir")
+	return filepath.Join(p.GetWorkspaceDir(), JacocoReportsDirName)
 }
 
 func (p *JacocoPlugin) GetSourcesWorkSpaceDir() string {
@@ -605,6 +601,9 @@ func (p *JacocoPlugin) GenerateJacocoReports() error {
 	args = append(args, p.GetXmlReportArgs()+" ")
 
 	cmdStr := strings.Join(args, " ")
+	LogPrintln(p, "JacocoPlugin Running command: ")
+	LogPrintln(p, cmdStr)
+
 	parts := strings.Fields(cmdStr)
 
 	cmd := exec.Command(parts[0], parts[1:]...)
@@ -693,6 +692,15 @@ func (p *JacocoPlugin) WriteOutputVariables() error {
 		}
 	}
 
+	s, err := ReadFileAsString(GetOutputVariablesStorageFilePath())
+	if err != nil {
+		LogPrintln(p, "JacocoPlugin Error in WriteOutputVariables: "+err.Error())
+		return GetNewError("Error in WriteOutputVariables: " + err.Error())
+	}
+
+	LogPrintln(p, "\n\nReading JacocoPlugin Output Variables file ", GetOutputVariablesStorageFilePath())
+	LogPrintln(p, s)
+
 	return retErr
 }
 
@@ -706,6 +714,7 @@ func (p *JacocoPlugin) GetPluginType() string {
 
 const (
 	BuildRootPathKeyStr          = "DRONE_WORKSPACE"
+	JacocoReportsDirName         = "jacoco_reports_dir"
 	ClassFilesListParamKey       = "ClassFilesList"
 	ClassesInfoStoreListParamKey = "ClassesInfoStoreList"
 	FinalizedSourcesListParamKey = "FinalizedSourcesList"
