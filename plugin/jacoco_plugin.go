@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -698,8 +699,9 @@ func (p *JacocoPlugin) WriteOutputVariables() error {
 		return GetNewError("Error in WriteOutputVariables: " + err.Error())
 	}
 
-	LogPrintln(p, "\n\nReading JacocoPlugin Output Variables file ", GetOutputVariablesStorageFilePath())
-	LogPrintln(p, s)
+	fmt.Println("\n\nReading JacocoPlugin Output Variables file ", GetOutputVariablesStorageFilePath())
+	fmt.Println(s)
+	fmt.Println("Reading Complete\n\n")
 
 	return retErr
 }

@@ -49,6 +49,11 @@ func GetNewError(s string) error {
 }
 
 func LogPrintln(p Plugin, args ...interface{}) {
+
+	if !IsDevTestingMode() {
+		return
+	}
+
 	if p != nil {
 		if p.IsQuiet() {
 			return
@@ -59,6 +64,11 @@ func LogPrintln(p Plugin, args ...interface{}) {
 }
 
 func LogPrintf(p Plugin, format string, v ...interface{}) {
+
+	if !IsDevTestingMode() {
+		return
+	}
+
 	if p != nil {
 		if p.IsQuiet() {
 			return
